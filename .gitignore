@@ -1,0 +1,9 @@
+# Ignore OMNeT++ build artifacts and user-specific files
+out/
+*.o
+*.so
+*.dll
+*.exe
+
+# Ignore Eclipse project metadata
+.metadata/

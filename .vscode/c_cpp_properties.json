@@ -1,0 +1,48 @@
+{
+    "configurations": [
+        {
+            "name": "Win32",
+            "includePath": [
+                // =================================================================
+                // 1. OMNeT++ 核心库及附带的 MinGW 编译器头文件
+                // 路径已根据您的 "D:\\chelucloud\\omnet\\omnetpp-5.6.2" 目录更新
+                // =================================================================
+                "D:/chelucloud/omnet/omnetpp-5.6.2/include",
+                "D:/chelucloud/omnet/omnetpp-5.6.2/tools/win64/mingw64/include/c++/7.1.0",
+                "D:/chelucloud/omnet/omnetpp-5.6.2/tools/win64/mingw64/include/c++/7.1.0/x86_64-w64-mingw32",
+                "D:/chelucloud/omnet/omnetpp-5.6.2/tools/win64/mingw64/include/c++/7.1.0/backward",
+                "D:/chelucloud/omnet/omnetpp-5.6.2/tools/win64/mingw64/lib/gcc/x86_64-w64-mingw32/7.1.0/include",
+                "D:/chelucloud/omnet/omnetpp-5.6.2/tools/win64/mingw64/include",
+                "D:/chelucloud/omnet/omnetpp-5.6.2/tools/win64/mingw64/lib/gcc/x86_64-w64-mingw32/7.1.0/include-fixed",
+                "D:/chelucloud/omnet/omnetpp-5.6.2/tools/win64/mingw64/x86_64-w64-mingw32/include",
+
+                // =================================================================
+                // 2. 您工作空间(workspace)中所有框架的 "src" 目录
+                // 文件夹名称已根据您的截图精确匹配
+                // =================================================================
+                "${workspaceFolder}/inet4/src",
+                "${workspaceFolder}/Simu5G-1.1.0/src",
+                "${workspaceFolder}/veins-veins-5.2/src",
+
+                // =================================================================
+                // 3. 通用包含路径，确保您自己创建的项目也能被识别
+                // =================================================================
+                "${workspaceFolder}/**"
+            ],
+            "defines": [
+                "_DEBUG",
+                "UNICODE",
+                "_UNICODE"
+            ],
+            // =================================================================
+            // 4. 编译器路径
+            // 已根据您的 "D:\\chelucloud\\omnet" 目录更新
+            // =================================================================
+            "compilerPath": "D:/chelucloud/omnet/omnetpp-5.6.2/tools/win64/mingw64/bin/g++.exe",
+            "cStandard": "c11",
+            "cppStandard": "c++11",
+            "intelliSenseMode": "windows-gcc-x64"
+        }
+    ],
+    "version": 4
+}

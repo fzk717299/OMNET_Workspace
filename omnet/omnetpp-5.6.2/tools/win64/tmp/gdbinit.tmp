@@ -1,0 +1,1 @@
+exec(open('D:/chelucloud/workspace/inet4/.gdbinit.py').read(), {}, {'__file__':'D:/chelucloud/workspace/inet4/.gdbinit.py'})
