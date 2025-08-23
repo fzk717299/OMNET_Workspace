@@ -1,9 +1,24 @@
-# Ignore OMNeT++ build artifacts and user-specific files
+# Ignore directories
+.metadata/
+.vscode/
 out/
+
+# Ignore build artifacts and user-specific files
 *.o
 *.so
 *.dll
 *.exe
+*.ilk
+*.pdb
+*.exp
+*.stackdump
 
-# Ignore Eclipse project metadata
-.metadata/
+# Ignore log and history files
+*.log
+*.bak
+*~
+.bash_history
+
+# Ignore system files
+.DS_Store
+Thumbs.db

@@ -63,6 +63,14 @@ void LtePhyUe::initialize(int stage)
         servingCell_ = registerSignal("servingCell");
         averageCqiDl_ = registerSignal("averageCqiDl");
         averageCqiUl_ = registerSignal("averageCqiUl");
+        averageRiUl_ = registerSignal("averageRiUl");
+        handoverAttemptSignal_ = registerSignal("handoverAttempt");
+        handoverFailureSignal_ = registerSignal("handoverFailure");
+
+        hasUplinkTraffic_ = false;
+        mac_ = check_and_cast<LteMacUe*>(getParentModule()->getSubmodule("mac"));
+        thermalNoise_ = par("thermalNoise");
+        handoverFailureSinrThreshold_dB_ = par("handoverFailureSinrThreshold_dB");
 
         if (!hasListeners(averageCqiDl_))
             error("no phy listeners");
@@ -370,6 +378,9 @@ void LtePhyUe::triggerHandover()
     else
         EV << NOW << " LtePhyUe::triggerHandover - UE " << nodeId_ << " is starting handover to eNB " << candidateMasterId_ << "... " << endl;
 
+    // Emit handover attempt signal
+    emit(handoverAttemptSignal_, 1);
+    
     binder_->addUeHandoverTriggered(nodeId_);
 
     // inform the UE's IP2Nic module to start holding downstream packets
@@ -400,6 +411,56 @@ void LtePhyUe::doHandover()
 {
     // if masterId_ == 0, it means the UE was not attached to any eNodeB, so it only has to perform attachment procedures
     // if candidateMasterId_ == 0, it means the UE is detaching from its eNodeB, so it only has to perform detachment procedures
+
+    // Only check SINR when moving to a new eNodeB
+    if (candidateMasterId_ != 0 && masterId_ != 0)
+    {
+        // Get target eNodeB module
+        cModule* targetEnbModule = getSimulation()->getModule(binder_->getOmnetId(candidateMasterId_));
+        if (targetEnbModule == nullptr)
+        {
+            // Target eNodeB not found
+            EV_WARN << "LtePhyUe::doHandover - target eNB has not been found. Aborting handover." << endl;
+            emit(handoverFailureSignal_, 1);
+            return;
+        }
+        
+        // Get the phy module of the target eNB
+        LtePhyBase* targetEnb = check_and_cast<LtePhyBase*>(targetEnbModule->getSubmodule("cellularNic")->getSubmodule("phy"));
+        
+        // Create a fictitious frame and control info for SINR estimation
+        LteAirFrame *frame = new LteAirFrame("handoverCheckFrame");
+        UserControlInfo *cInfo = new UserControlInfo();
+        
+        // Populate control info with target eNB's data
+        cInfo->setSourceId(candidateMasterId_);
+        cInfo->setTxPower(targetEnb->getTxPwr());
+        cInfo->setCoord(targetEnb->getCoord());
+        cInfo->setFrameType(FEEDBACKPKT); // Type doesn't matter for SINR calculation
+        
+        // Get SINR vector from the channel model
+        std::vector<double> sinrVector = primaryChannelModel_->getSINR(frame, cInfo);
+        
+        // Clean up temporary objects
+        delete cInfo;
+        delete frame;
+        
+        // Compute the mean SINR over all Resource Blocks
+        double sinr = 0;
+        for (auto it = sinrVector.begin(); it != sinrVector.end(); ++it)
+            sinr += *it;
+        sinr /= sinrVector.size();
+        
+        // Check if SINR is below threshold
+        if (sinr < handoverFailureSinrThreshold_dB_)
+        {
+            EV_WARN << "LtePhyUe::doHandover - SINR " << sinr 
+                    << "dB below threshold " << handoverFailureSinrThreshold_dB_ 
+                    << "dB. Aborting handover." << endl;
+            emit(handoverFailureSignal_, 1);
+            return;  // Abort handover
+        }
+    }
 
     if (masterId_ != 0)
     {
@@ -805,3 +866,5 @@ void LtePhyUe::finish()
         }
     }
 }
+
+

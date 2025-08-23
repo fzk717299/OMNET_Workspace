@@ -96,12 +96,26 @@ class LtePhyUe : public LtePhyBase
     bool useBattery_;
     double txAmount_;    // drawn current amount for tx operations (mA)
     double rxAmount_;    // drawn current amount for rx operations (mA)
+    bool hasUplinkTraffic_; // flag for uplink traffic
 
     LteMacUe *mac_;
     LteRlcUm *rlcUm_;
     LtePdcpRrcBase *pdcp_;
 
     omnetpp::simtime_t lastFeedback_;
+
+    // Statistics for handover
+    omnetpp::simsignal_t averageCqiDl_;
+    omnetpp::simsignal_t averageCqiUl_;
+    omnetpp::simsignal_t averageRiUl_;
+    
+    // Signals for handover failure statistics
+    omnetpp::simsignal_t handoverAttemptSignal_;
+    omnetpp::simsignal_t handoverFailureSignal_;
+    
+    // Thermal noise and threshold for handover failure
+    double thermalNoise_;
+    double handoverFailureSinrThreshold_dB_;
 
     virtual void initialize(int stage) override;
     virtual void handleSelfMessage(omnetpp::cMessage *msg) override;

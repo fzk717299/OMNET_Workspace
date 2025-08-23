@@ -74,6 +74,15 @@ simple LtePhyUe extends LtePhyBase {
          @statistic[averageCqiDl](title="Average Cqi reported in DL"; unit="cqi"; source="averageCqiDl"; record=mean,vector);
          @signal[averageCqiUl];
          @statistic[averageCqiUl](title="Average Cqi reported in UL"; unit="cqi"; source="averageCqiUl"; record=mean,vector);
+         bool useThermalNoise = default(true);
+         double thermalNoise @unit(dBm) = default(-110dBm);
+         double handoverFailureSinrThreshold_dB @unit(dB) = default(-10dB);
+         
+         // Handover statistics
+         @signal[handoverAttempt];
+         @statistic[handoverAttempt](title="Handover attempts"; source="handoverAttempt"; record=count,vector);
+         @signal[handoverFailure];
+         @statistic[handoverFailure](title="Handover failures"; source="handoverFailure"; record=count,vector);
 }
 
 // 

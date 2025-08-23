@@ -128,6 +128,18 @@ simple LteRealisticChannelModel extends LteChannelModel
     
     @signal[interferencePower];
     @statistic[interferencePower](title="Interference plus noise power"; unit="dBm"; source="interferencePower"; record=mean,vector);
+    
+    @signal[rssiChangeRate];
+    @statistic[rssiChangeRate](title="Signal strength change rate"; unit="dB/s"; source="rssiChangeRate"; record=mean,vector);
+    
+    @signal[connectionInterruption];
+    @statistic[connectionInterruption](title="Connection interruption events"; unit=""; source="connectionInterruption"; record=count,vector);
+    
+    @signal[connectionRestoration];
+    @statistic[connectionRestoration](title="Connection restoration events"; unit=""; source="connectionRestoration"; record=count,vector);
+    
+    @signal[interruptionDuration];
+    @statistic[interruptionDuration](title="Duration of connection interruptions"; unit="s"; source="interruptionDuration"; record=mean,vector,max,histogram);
 }
 
 simple LteMagicChannelModel extends LteChannelModel

@@ -36,6 +36,10 @@ simsignal_t LteRealisticChannelModel::measuredSinr_ = registerSignal("measuredSi
 simsignal_t LteRealisticChannelModel::coverageStatus_ = registerSignal("coverageStatus");
 simsignal_t LteRealisticChannelModel::receivedPower_ = registerSignal("receivedPower");
 simsignal_t LteRealisticChannelModel::interferencePower_ = registerSignal("interferencePower");
+simsignal_t LteRealisticChannelModel::rssiChangeRate_ = registerSignal("rssiChangeRate");
+simsignal_t LteRealisticChannelModel::connectionInterruption_ = registerSignal("connectionInterruption");
+simsignal_t LteRealisticChannelModel::connectionRestoration_ = registerSignal("connectionRestoration");
+simsignal_t LteRealisticChannelModel::interruptionDuration_ = registerSignal("interruptionDuration");
 
 void LteRealisticChannelModel::initialize(int stage)
 {
@@ -705,9 +709,50 @@ std::vector<double> LteRealisticChannelModel::getSINR(LteAirFrame *frame, UserCo
         emit(receivedPower_, receivedPower);
         emit(interferencePower_, interferencePlusNoise);
         emit(rcvdSinr_, finalSinr);
+        
+        // 计算RSSI变化率
+        MacNodeId nodeId = lteInfo->getDestId(); // 获取接收节点ID
+        if (lastRssiRecord_.find(nodeId) != lastRssiRecord_.end()) {
+            // 已有历史记录，计算变化率
+            double lastRssi = lastRssiRecord_[nodeId].second;
+            simtime_t lastTime = lastRssiRecord_[nodeId].first;
+            simtime_t timeDiff = simTime() - lastTime;
+            
+            if (timeDiff > SIMTIME_ZERO) {
+                double changeRate = (receivedPower - lastRssi) / timeDiff.dbl(); // dB/s
+                emit(rssiChangeRate_, changeRate);
+            }
+        }
+        
+        // 更新最新RSSI记录
+        lastRssiRecord_[nodeId] = std::make_pair(simTime(), receivedPower);
 
         bool inCoverage = (finalSinr > sinrThreshold_);
         emit(coverageStatus_, inCoverage);
+        
+        // 处理中断状态
+        // 检查节点是否有中断状态记录
+        if (interruptionStatus_.find(nodeId) == interruptionStatus_.end()) {
+            // 初始化节点状态
+            interruptionStatus_[nodeId] = std::make_pair(!inCoverage, inCoverage ? simtime_t::ZERO : simTime());
+        } else {
+            bool wasInterrupted = interruptionStatus_[nodeId].first;
+            
+            if (!wasInterrupted && !inCoverage) {
+                // 新的中断开始
+                interruptionStatus_[nodeId].first = true;
+                interruptionStatus_[nodeId].second = simTime();
+                emit(connectionInterruption_, 1);
+            } else if (wasInterrupted && inCoverage) {
+                // 中断结束，计算持续时间
+                simtime_t interruptStart = interruptionStatus_[nodeId].second;
+                simtime_t duration = simTime() - interruptStart;
+                
+                interruptionStatus_[nodeId].first = false;
+                emit(connectionRestoration_, 1);
+                emit(interruptionDuration_, duration.dbl());
+            }
+        }
         //--- END METRICS EMISSION ---
 
         EV << "\t ext[" << extCellInterference[i] << "] - multi[" << multiCellInterference[i] << "] - recvPwr["

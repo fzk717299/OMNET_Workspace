@@ -153,6 +153,16 @@ protected:
   static omnetpp::simsignal_t coverageStatus_;
   static omnetpp::simsignal_t receivedPower_;
   static omnetpp::simsignal_t interferencePower_;
+  static omnetpp::simsignal_t rssiChangeRate_;     // 信号强度变化率信号
+  static omnetpp::simsignal_t connectionInterruption_;      // 连接中断开始信号
+  static omnetpp::simsignal_t connectionRestoration_;       // 连接恢复信号
+  static omnetpp::simsignal_t interruptionDuration_;        // 中断持续时间信号
+  
+  // 记录每个节点的上次RSSI值和时间
+  std::map<MacNodeId, std::pair<inet::simtime_t, double>> lastRssiRecord_;
+  
+  // 记录节点中断状态和开始时间
+  std::map<MacNodeId, std::pair<bool, inet::simtime_t>> interruptionStatus_;
 
   // rsrq from log file
   bool useRsrqFromLog_;
