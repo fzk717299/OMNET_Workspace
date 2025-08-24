@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!-- generated on 08/24/25 15:20:51 by Eclipse SUMO netedit Version 1.8.0
+<configuration xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/netconvertConfiguration.xsd">
+
+    <input>
+        <sumo-net-file value="heterogeneous_upgraded.net.xml"/>
+    </input>
+
+    <output>
+        <output-file value="D:\chelucloud\workspace\Simu5G-1.1.0\simulations\Iov_new\heterogeneous_upgraded.net.xml"/>
+    </output>
+
+    <processing>
+        <geometry.min-radius.fix.railways value="false"/>
+        <geometry.max-grade.fix value="false"/>
+        <offset.disable-normalization value="true"/>
+        <lefthand value="false"/>
+    </processing>
+
+    <junctions>
+        <no-turnarounds value="true"/>
+        <junctions.corner-detail value="0"/>
+        <junctions.limit-turn-speed value="-1"/>
+        <rectangular-lane-cut value="false"/>
+    </junctions>
+
+    <pedestrian>
+        <walkingareas value="false"/>
+    </pedestrian>
+
+    <netedit>
+        <additional-files value="D:\chelucloud\workspace\Simu5G-1.1.0\simulations\Iov_new\heterogeneous.add.xml"/>
+    </netedit>
+
+    <report>
+        <aggregate-warnings value="5"/>
+    </report>
+
+</configuration>
+-->
+
+<additional xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/additional_file.xsd">
+    <busStop id="busStop_1" lane="0/1to0/2_0" startPos="20.00" endPos="40.00"/>
+    <busStop id="busStop_2" lane="2/1to2/2_0" startPos="20.00" endPos="40.00"/>
+    <parkingArea id="parkingArea_1" lane="0/0to1/0_0" startPos="10.00" endPos="50.00" roadsideCapacity="10"/>
+    <parkingArea id="parkingArea_2" lane="2/2to1/2_0" startPos="10.00" endPos="50.00" roadsideCapacity="10"/>
+    <instantInductionLoop id="speedLimitDetector_1" lane="0/0to0/1_0" pos="107.81" file="speedLimitDetector_1.xml"/>
+    <poly id="commercial1" type="building" color="136,112,136" fill="1" layer="4.00" shape="285.100000,18.440000 278.010000,187.230000 376.950000,176.590000 347.160000,23.760000 285.100000,18.440000"/>
+    <poly id="commercial2" type="building" color="blue" fill="1" layer="4.00" shape="36.530000,234.400000 31.120000,378.790000 67.290000,375.460000 122.890000,380.760000 123.410000,226.240000 36.530000,234.400000"/>
+    <poly id="highrise1" type="building" color="0,128,128" fill="1" layer="4.00" shape="126.420000,131.480000 109.690000,179.060000 185.010000,186.990000 187.430000,119.810000 126.420000,131.480000"/>
+    <poly id="highrise2" type="building" color="0,128,128" fill="1" layer="4.00" shape="345.650000,214.970000 310.550000,277.260000 328.670000,327.330000 366.060000,346.970000 389.760000,293.710000 345.650000,214.970000"/>
+    <poly id="highrise3" type="building" color="red" fill="1" layer="4.00" shape="140.430000,241.140000 139.370000,374.470000 191.790000,347.660000 178.370000,245.040000 140.430000,241.140000"/>
+    <poly id="midrise1" type="building" color="0,128,128" fill="1" layer="3.00" shape="14.330000,18.740000 16.980000,91.230000 72.070000,99.590000 80.440000,18.960000 14.330000,18.740000"/>
+    <poly id="midrise2" type="building" color="0,128,128" fill="1" layer="3.00" shape="118.620000,14.990000 90.000000,80.000000 152.140000,87.710000 163.370000,19.840000 118.620000,14.990000"/>
+    <poly id="midrise3" type="building" color="0,128,0" fill="1" layer="3.00" shape="23.800000,110.920000 23.140000,175.920000 54.170000,176.410000 68.770000,121.100000 50.060000,101.670000 23.800000,110.920000"/>
+    <poly id="midrise4" type="building" color="68,44,44" fill="1" layer="3.00" shape="90.000000,90.000000 82.730000,151.040000 110.970000,157.650000 120.000000,90.000000 90.000000,90.000000"/>
+    <poly id="park1" type="nature" color="37,94,37" fill="1" layer="1.00" shape="235.130000,224.820000 224.440000,349.670000 293.550000,349.230000 292.590000,261.470000 297.240000,227.900000 264.540000,246.740000 235.130000,224.820000"/>
+    <poly id="tunnel1" type="obstacle" color="grey" fill="1" layer="2.00" shape="209.220000,20.210000 247.660000,13.470000 247.850000,161.510000 219.860000,149.400000 209.220000,20.210000"/>
+</additional>
