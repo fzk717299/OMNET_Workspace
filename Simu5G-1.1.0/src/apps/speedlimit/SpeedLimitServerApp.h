@@ -44,6 +44,9 @@ class SpeedLimitServerApp : public UdpBasicApp
     // 创建控制命令包
     virtual Packet* createControlCommandPacket(const char* vehicleId, double currentSpeed, double targetSpeed);
     
+    // 新增：将SUMO ID映射到OMNeT++模块名称
+    virtual std::string mapSumoIdToOmnetName(const char* sumoId);
+    
   public:
     SpeedLimitServerApp();
     virtual ~SpeedLimitServerApp();

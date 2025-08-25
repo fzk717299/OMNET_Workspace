@@ -99,30 +99,37 @@ bool SpeedLimitCarApp::getTraCIInterface()
 
 void SpeedLimitCarApp::processSpeedControlCommand(const SpeedLimitPacket* cmd)
 {
-    // 获取命令数据
-    const char* vehicleId = cmd->getVehicleId();
+    // 获取命令中的SUMO ID
+    const char* commandSumoId = cmd->getVehicleId();
     double targetSpeed = cmd->getTargetSpeed() * 3.6;  // 转换为km/h
     int reason = cmd->getControlReason();
     
-    // 检查命令是否适用于此车辆
-    std::string myId = getParentModule()->getFullName();
-    
-    // 从车辆的移动模块获取其SUMO ID
+    // 获取自己的SUMO ID
     cModule* mobilityModule = getParentModule()->getSubmodule("mobility");
     auto* veinsMobility = dynamic_cast<veins::VeinsInetMobility*>(mobilityModule);
     if (!veinsMobility) {
-        EV_ERROR << "Could not get VeinsInetMobility module for " << myId << endl;
+        EV_ERROR << "Could not get VeinsInetMobility module" << endl;
         return;
     }
+    
+    // 获取自己的SUMO ID
     std::string mySumoId = veinsMobility->getExternalId();
-
-    // 检查命令中的车辆ID是否与此车辆的SUMO ID匹配
-    if (mySumoId == vehicleId) {
-        EV_INFO << "Received speed control command for my vehicle (SUMO ID: " << mySumoId << "): targetSpeed=" << targetSpeed
-                << " km/h, reason=" << reason << endl;
-                
-        // 应用速度限制，传递SUMO ID
+    
+    EV_INFO << "Received speed control command: "
+            << "My SUMO ID=" << mySumoId 
+            << ", Command SUMO ID=" << commandSumoId
+            << ", Target speed=" << targetSpeed << " km/h" << endl;
+    
+    // 直接比较SUMO ID
+    if (mySumoId == commandSumoId) {
+        // ID匹配，执行限速
+        EV_INFO << "ID match! Applying speed limit to vehicle " << mySumoId 
+                << ", target speed: " << targetSpeed << " km/h, reason: " << reason << endl;
+        
+        // 应用速度限制
         applySpeedLimit(mySumoId, targetSpeed);
+    } else {
+        EV_INFO << "Command not for me. My ID: " << mySumoId << ", command ID: " << commandSumoId << endl;
     }
 }
 
@@ -135,21 +142,26 @@ void SpeedLimitCarApp::applySpeedLimit(const std::string& vehicleId, double targ
     }
     
     try {
+        // targetSpeed是km/h，需要转换为m/s给TraCI API
+        double speedMs = targetSpeed / 3.6;  // 转换为m/s
+        
+        EV_INFO << "Applying speed limit to vehicle " << vehicleId 
+                << ", target speed: " << targetSpeed << " km/h (" 
+                << speedMs << " m/s)" << endl;
+                
         // 应用速度限制
         if (smoothDeceleration) {
             // 平滑减速
-            EV_INFO << "Applying smooth deceleration to " << targetSpeed << " km/h over " 
-                    << responseTime << " seconds for vehicle " << vehicleId << endl;
-            traci->vehicle(vehicleId).slowDown(targetSpeed / 3.6, responseTime); // Veins 5.2+ API, responseTime is in seconds
+            EV_INFO << "Using smooth deceleration over " << responseTime << " seconds" << endl;
+            traci->vehicle(vehicleId).slowDown(speedMs, responseTime);
         }
         else {
             // 立即设置速度
-            EV_INFO << "Setting speed immediately to " << targetSpeed << " km/h for vehicle " << vehicleId << endl;
-            traci->vehicle(vehicleId).setSpeed(targetSpeed / 3.6); // Veins 5.2+ API
+            EV_INFO << "Setting speed immediately" << endl;
+            traci->vehicle(vehicleId).setSpeed(speedMs);
         }
         
-        // 修改车辆颜色以可视化控制（可选）
-        // 注意：Veins 5.2中不再支持setColor方法
+        EV_INFO << "Successfully applied speed limit to vehicle " << vehicleId << endl;
     }
     catch (const std::exception& e) {
         EV_ERROR << "Error applying speed limit for vehicle " << vehicleId << ": " << e.what() << endl;

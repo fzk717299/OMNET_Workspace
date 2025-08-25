@@ -120,6 +120,7 @@ void SpeedLimitRsuApp::checkSpeedDetector()
                 // 优化：首先检查车辆是否在目标路段，如果不是，则跳过，减少TraCI调用
                 std::string vehRoadId = traci->vehicle(sumoId).getRoadId();
                 if (vehRoadId != "0/0to0/1") {
+                    EV_INFO << "Vehicle " << sumoId << " on road " << vehRoadId << ", not on target road 0/0to0/1, skipping" << endl;
                     continue;
                 }
 
@@ -133,18 +134,22 @@ void SpeedLimitRsuApp::checkSpeedDetector()
                             << " at position " << vehPos << " with speed " << vehSpeed << " km/h." << endl;
 
                     // 检查是否超速且尚未处理
-                    if (vehSpeed > maxSpeed && processedVehicles.find(sumoId) == processedVehicles.end()) {
+                    if (vehSpeed > maxSpeed) {
                         EV_INFO << "Vehicle " << sumoId << " is speeding! Current speed: " << vehSpeed 
                                 << " km/h, limit: " << maxSpeed << " km/h. Sending control command." << endl;
                                
                         // 创建并发送速度限制数据包
                         Packet* packet = createSpeedLimitPacket(sumoId, vehSpeed);
                         // 使用socket.sendTo方法发送到服务器
-                        // destAddresses[0]已经是L3Address类型，直接使用
                         socket.sendTo(packet, destAddresses[0], destPort);
                         
                         // 添加到已处理列表，防止重复发送
                         processedVehicles.insert(sumoId);
+                        
+                        EV_INFO << "Speed limit command sent for vehicle " << sumoId << endl;
+                    } else {
+                        EV_INFO << "Vehicle " << sumoId << " not speeding, speed: " << vehSpeed 
+                                << " km/h, limit: " << maxSpeed << " km/h." << endl;
                     }
                 }
             }

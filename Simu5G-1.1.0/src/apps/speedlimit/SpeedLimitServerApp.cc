@@ -7,6 +7,7 @@
 #include "inet/common/packet/Packet.h"
 #include "inet/common/Units.h"
 #include "inet/networklayer/common/L3AddressResolver.h"
+#include "veins/modules/mobility/traci/TraCIScenarioManager.h"
 
 using namespace inet::units::values;
 
@@ -88,14 +89,28 @@ void SpeedLimitServerApp::processDetectorData(const SpeedLimitPacket* data)
         // 创建控制命令包
         Packet* cmdPacket = createControlCommandPacket(vehicleId, currentSpeed, targetSpeed);
         
-        // 动态解析vehicleId为L3Address并直接发送
         try {
-            L3Address destAddr = L3AddressResolver().resolve(vehicleId);
-            EV_INFO << "Sending command to " << vehicleId << " at address " << destAddr << endl;
-            socket.sendTo(cmdPacket, destAddr, destPort);
+            // 获取车辆对应的OMNeT++模块名称
+            std::string omnetModuleName = mapSumoIdToOmnetName(vehicleId);
+            
+            if (!omnetModuleName.empty()) {
+                // 解析地址并发送命令
+                L3Address destAddr = L3AddressResolver().resolve(omnetModuleName.c_str());
+                
+                if (!destAddr.isUnspecified()) {
+                    EV_INFO << "Sending command to " << omnetModuleName << " at address " << destAddr << endl;
+                    socket.sendTo(cmdPacket, destAddr, destPort);
+                } else {
+                    EV_ERROR << "Failed to resolve address for node " << omnetModuleName << endl;
+                    delete cmdPacket;
+                }
+            } else {
+                EV_ERROR << "Could not map SUMO ID " << vehicleId << " to any OMNeT++ module" << endl;
+                delete cmdPacket;
+            }
         } catch (const std::exception& e) {
             EV_ERROR << "Error sending command to vehicle " << vehicleId << ": " << e.what() << endl;
-            delete cmdPacket; // 避免内存泄漏
+            delete cmdPacket;
         }
     }
 }
@@ -124,6 +139,37 @@ Packet* SpeedLimitServerApp::createControlCommandPacket(const char* vehicleId, d
     packet->insertAtBack(data);
     
     return packet;
+}
+
+std::string SpeedLimitServerApp::mapSumoIdToOmnetName(const char* sumoId)
+{
+    // 获取VeinsInetManager
+    cModule* manager = getModuleByPath("<root>.veinsManager");
+    if (!manager) {
+        EV_ERROR << "Could not find veinsManager module" << endl;
+        return "";
+    }
+    
+    // 获取映射表
+    veins::TraCIScenarioManager* scenarioManager = dynamic_cast<veins::TraCIScenarioManager*>(manager);
+    if (!scenarioManager) {
+        EV_ERROR << "veinsManager is not a TraCIScenarioManager" << endl;
+        return "";
+    }
+    
+    std::map<std::string, cModule*> managedHosts = scenarioManager->getManagedHosts();
+    
+    // 在映射表中查找对应的模块
+    auto it = managedHosts.find(sumoId);
+    if (it != managedHosts.end()) {
+        cModule* module = it->second;
+        std::string moduleName = module->getFullName();
+        EV_INFO << "Found managed module " << moduleName << " for SUMO ID " << sumoId << endl;
+        return moduleName;
+    }
+    
+    EV_ERROR << "No managed module found for SUMO ID " << sumoId << endl;
+    return "";
 }
 
 void SpeedLimitServerApp::finish()
