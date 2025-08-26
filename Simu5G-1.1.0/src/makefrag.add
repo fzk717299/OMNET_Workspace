@@ -1,0 +1,4 @@
+# Add the TrafficLight module directory to the makefile
+OBJS += $O/apps/trafficlight/TrafficLightCarApp.o \
+        $O/apps/trafficlight/TrafficLightRsuApp.o \
+        $O/apps/trafficlight/TrafficLightPacket_m.o
