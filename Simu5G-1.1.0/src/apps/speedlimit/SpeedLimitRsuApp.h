@@ -22,6 +22,9 @@ namespace veins {
 class SpeedLimitRsuApp : public UdpBasicApp
 {
   protected:
+    // 统计信号
+    static simsignal_t speedLimitDetectedSignal;
+    
     // 配置参数
     std::string speedLimitDetectorId;  // 速度检测器ID
     double maxSpeed;  // 最大速度(km/h)

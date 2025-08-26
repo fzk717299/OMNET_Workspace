@@ -13,6 +13,10 @@ using namespace inet::units::values;
 
 Define_Module(SpeedLimitServerApp);
 
+// 统计信号声明和注册（简化）
+simsignal_t SpeedLimitServerApp::speedLimitCommandSentSignal = registerSignal("speedLimitCommandSent");
+simsignal_t SpeedLimitServerApp::messagesProcessedSignal = registerSignal("messagesProcessed");
+
 SpeedLimitServerApp::SpeedLimitServerApp() :
     UdpBasicApp(),
     hasMapSpeedLimit(false),
@@ -34,6 +38,9 @@ void SpeedLimitServerApp::initialize(int stage)
         // 读取参数
         hasMapSpeedLimit = par("hasMapSpeedLimit").boolValue();
         processingDelay = par("processingDelay").doubleValue();
+        
+        // 初始化处理消息计数
+        processedMsgs = 0;
     }
     else if (stage == INITSTAGE_APPLICATION_LAYER) {
         EV_INFO << "SpeedLimitServerApp initialized with hasMapSpeedLimit=" 
@@ -43,7 +50,7 @@ void SpeedLimitServerApp::initialize(int stage)
 
 void SpeedLimitServerApp::processPacket(Packet *pk)
 {
-    // 首先调用父类方法处理包
+    // 调用父类方法处理基本统计
     UdpBasicApp::processPacket(pk);
     
     // 尝试解析为SpeedLimitPacket - 使用try-catch处理可能的错误
@@ -57,6 +64,9 @@ void SpeedLimitServerApp::processPacket(Packet *pk)
                 // 处理检测器数据
                 processDetectorData(speedData.get());
                 processedMsgs++;
+                
+                // 发射处理消息计数信号
+                emit(messagesProcessedSignal, processedMsgs);
             }
         }
     }
@@ -99,7 +109,14 @@ void SpeedLimitServerApp::processDetectorData(const SpeedLimitPacket* data)
                 
                 if (!destAddr.isUnspecified()) {
                     EV_INFO << "Sending command to " << omnetModuleName << " at address " << destAddr << endl;
+                    
+                    // 发送命令包
                     socket.sendTo(cmdPacket, destAddr, destPort);
+                    
+                    // 发射统计信号
+                    emit(speedLimitCommandSentSignal, targetSpeed);
+                    
+                    EV_INFO << "Command sent successfully" << endl;
                 } else {
                     EV_ERROR << "Failed to resolve address for node " << omnetModuleName << endl;
                     delete cmdPacket;
@@ -174,7 +191,14 @@ std::string SpeedLimitServerApp::mapSumoIdToOmnetName(const char* sumoId)
 
 void SpeedLimitServerApp::finish()
 {
+    // 调用基类的finish方法确保统计收集完整
     UdpBasicApp::finish();
+    
+    // 添加与UDP兼容的标量统计
+    recordScalar("sentPk:count", processedMsgs);  // 记录发送的包总数
+    
+    // 记录自定义应用层指标
+    recordScalar("messagesProcessed", processedMsgs);
     
     EV_INFO << "SpeedLimitServerApp processed " << processedMsgs << " detector messages" << endl;
 }

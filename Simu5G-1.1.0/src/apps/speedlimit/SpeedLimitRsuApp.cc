@@ -14,6 +14,9 @@
 
 Define_Module(SpeedLimitRsuApp);
 
+// 统计信号声明和注册（简化）
+simsignal_t SpeedLimitRsuApp::speedLimitDetectedSignal = registerSignal("speedLimitDetected");
+
 SpeedLimitRsuApp::SpeedLimitRsuApp() : 
     UdpBasicApp(),
     speedLimitDetectorId("speedLimitDetector_1"),
@@ -140,8 +143,13 @@ void SpeedLimitRsuApp::checkSpeedDetector()
                                
                         // 创建并发送速度限制数据包
                         Packet* packet = createSpeedLimitPacket(sumoId, vehSpeed);
-                        // 使用socket.sendTo方法发送到服务器
-                        socket.sendTo(packet, destAddresses[0], destPort);
+                        
+                        // 发射统计信号
+                        emit(speedLimitDetectedSignal, vehSpeed);
+                        
+                        // 发送数据包
+                        auto dest = L3AddressResolver().resolve("server");
+                        socket.sendTo(packet, dest, destPort);
                         
                         // 添加到已处理列表，防止重复发送
                         processedVehicles.insert(sumoId);
@@ -185,5 +193,14 @@ Packet* SpeedLimitRsuApp::createSpeedLimitPacket(const std::string& vehicleId, d
 
 void SpeedLimitRsuApp::finish()
 {
+    // 调用基类的finish方法确保统计收集完整
     UdpBasicApp::finish();
+    
+    // 添加兼容性统计记录 - 使与标准UDP指标兼容
+    recordScalar("sentPk:count", processedVehicles.size());
+    
+    // 记录自定义应用层指标
+    recordScalar("speedLimitDetections", processedVehicles.size());
+    
+    EV_INFO << "SpeedLimitRsuApp processed " << processedVehicles.size() << " vehicles" << endl;
 }

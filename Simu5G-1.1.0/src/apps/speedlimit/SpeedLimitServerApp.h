@@ -18,6 +18,10 @@ using namespace inet;
 class SpeedLimitServerApp : public UdpBasicApp
 {
   protected:
+    // 统计信号
+    static simsignal_t speedLimitCommandSentSignal;
+    static simsignal_t messagesProcessedSignal;  // 新增：处理消息数量信号
+    
     // 高精地图中是否有限速信息
     bool hasMapSpeedLimit;
     
@@ -44,7 +48,7 @@ class SpeedLimitServerApp : public UdpBasicApp
     // 创建控制命令包
     virtual Packet* createControlCommandPacket(const char* vehicleId, double currentSpeed, double targetSpeed);
     
-    // 新增：将SUMO ID映射到OMNeT++模块名称
+    // SUMO ID到OMNeT++模块名的映射
     virtual std::string mapSumoIdToOmnetName(const char* sumoId);
     
   public:

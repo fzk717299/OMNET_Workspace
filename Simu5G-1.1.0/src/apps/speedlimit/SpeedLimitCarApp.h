@@ -22,6 +22,11 @@ namespace veins {
 class SpeedLimitCarApp : public UdpSink
 {
   protected:
+    // 统计信号
+    static simsignal_t speedCommandReceivedSignal;
+    static simsignal_t speedLimitAppliedSignal;
+    static simsignal_t endToEndDelaySignal;  // 添加端到端延迟信号
+    
     // TraCI接口指针，不负责创建和销毁
     veins::TraCICommandInterface* traci;
     

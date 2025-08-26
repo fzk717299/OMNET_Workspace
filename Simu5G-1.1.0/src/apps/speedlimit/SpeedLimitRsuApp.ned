@@ -23,4 +23,8 @@ simple SpeedLimitRsuApp extends UdpBasicApp
         
         // 检查间隔(s)
         double checkInterval @unit(s) = default(0.1s);
+        
+        // 统计信号
+        @signal[speedLimitDetected](type=double);
+        @statistic[speedLimitDetected](title="Speed limit violations detected"; source=speedLimitDetected; record=vector,count; interpolationmode=none);
 }

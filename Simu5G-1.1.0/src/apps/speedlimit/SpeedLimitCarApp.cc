@@ -16,6 +16,11 @@ using namespace inet::units::values;
 
 Define_Module(SpeedLimitCarApp);
 
+// 静态信号声明和注册
+simsignal_t SpeedLimitCarApp::speedCommandReceivedSignal = registerSignal("speedCommandReceived");
+simsignal_t SpeedLimitCarApp::speedLimitAppliedSignal = registerSignal("speedLimitApplied");
+simsignal_t SpeedLimitCarApp::endToEndDelaySignal = registerSignal("endToEndDelay");
+
 SpeedLimitCarApp::SpeedLimitCarApp() : 
     UdpSink(),
     traci(nullptr),
@@ -46,10 +51,14 @@ void SpeedLimitCarApp::initialize(int stage)
 
 void SpeedLimitCarApp::processPacket(Packet *packet)
 {
-    // 首先调用父类方法处理包
+    // 首先调用父类方法处理包，确保基本统计收集
     UdpSink::processPacket(packet);
     
-    // 尝试解析为SpeedLimitPacket - 使用try-catch处理可能的错误
+    // 计算端到端延迟
+    simtime_t delay = simTime() - packet->getCreationTime();
+    emit(endToEndDelaySignal, delay);  // 记录延迟统计
+    
+    // 尝试解析为SpeedLimitPacket
     try {
         // 使用更安全的方式检查和获取数据
         const auto& chunk = packet->peekData<Chunk>();
@@ -57,6 +66,9 @@ void SpeedLimitCarApp::processPacket(Packet *packet)
             // 尝试将chunk转换为SpeedLimitPacket
             const auto speedCmd = dynamicPtrCast<const SpeedLimitPacket>(chunk);
             if (speedCmd && speedCmd->getMsgType() == SL_CONTROL_COMMAND) {
+                // 记录接收到速度命令的统计信息
+                emit(speedCommandReceivedSignal, (long)1);
+                
                 // 处理控制命令
                 processSpeedControlCommand(speedCmd.get());
                 processedCmds++;
@@ -149,6 +161,9 @@ void SpeedLimitCarApp::applySpeedLimit(const std::string& vehicleId, double targ
                 << ", target speed: " << targetSpeed << " km/h (" 
                 << speedMs << " m/s)" << endl;
                 
+        // 发射统计信号记录应用的速度限制
+        emit(speedLimitAppliedSignal, targetSpeed);
+                
         // 应用速度限制
         if (smoothDeceleration) {
             // 平滑减速
@@ -170,7 +185,14 @@ void SpeedLimitCarApp::applySpeedLimit(const std::string& vehicleId, double targ
 
 void SpeedLimitCarApp::finish()
 {
+    // 调用基类的finish方法确保统计收集完整
     UdpSink::finish();
+    
+    // 添加兼容性统计记录 - 使与标准UDP指标兼容
+    recordScalar("rcvdPk:count", processedCmds);
+    
+    // 记录自定义应用层指标
+    recordScalar("speedCommandsReceived", processedCmds);
     
     EV_INFO << "SpeedLimitCarApp processed " << processedCmds << " control commands" << endl;
 }
