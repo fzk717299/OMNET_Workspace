@@ -24,7 +24,6 @@ import simu5g.common.binder.Binder;
 import simu5g.nodes.eNodeB;
 import simu5g.nodes.Ue;
 import simu5g.nodes.cars.Car;
-import simu5g.simulations.Iov_scenario4.IovRSU;
 
 import org.car2x.veins.subprojects.veins_inet.VeinsInetManager;
 
@@ -80,13 +79,13 @@ network IovScenario
             @display("p=800,150;is=vl");
         }
         rsu: IovRSU {
-            @display("p=561,42;is=s;i=device/accesspoint");
+            @display("p=156,42;is=s;i=device/accesspoint");
         }
 
 
     connections allowunconnected:
         server.pppg++ <--> Eth10G <--> router.pppg++;
-        router.pppg++ <--> Eth10G <--> rsu.pppg++;
+        // 删除RSU的有线连接，改为使用无线方式连接到eNodeB
         router.pppg++ <--> Eth10G <--> pgw.filterGate;
         pgw.pppg++ <--> Eth10G <--> eNodeB1.ppp;
         pgw.pppg++ <--> Eth10G <--> eNodeB2.ppp;

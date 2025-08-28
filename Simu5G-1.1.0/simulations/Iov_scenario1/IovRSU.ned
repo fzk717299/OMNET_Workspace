@@ -1,13 +1,22 @@
 package simu5g.simulations.Iov_scenario1;
 
-import inet.node.inet.StandardHost;
+import simu5g.nodes.Ue;
 
 //
-// RSU module with an Ethernet interface to be connected to the Core Network.
-// It is a StandardHost with a custom display string.
+// RSU module with LTE/NR UU interface to communicate with eNodeB
+// This extends the UE class to add wireless capabilities to RSUs
 //
-module IovRSU extends StandardHost
+module IovRSU extends Ue
 {
     parameters:
         @display("p=100,350;is=s;i=device/accesspoint");
+
+        // Override default UE mobility with StationaryMobility
+        mobilityType = default("StationaryMobility");
+
+        // RSU typically has more powerful hardware - This parameter is not defined in Ue.ned, so it is removed.
+        // txPower = default(30mw);
+
+        // Use LTE/NR for communication
+        nicType = default("LteNicUe");
 }
