@@ -29,5 +29,8 @@ simple TrafficLightRsuApp extends UdpBasicApp
         
         // Signal declarations
         @signal[tlStateChanged](type=long);
+        @signal[sentPk](type=inet::Packet);
         @statistic[tlStateChanged](title="Traffic light state changes sent"; source=tlStateChanged; record=count,vector; interpolationmode=none);
+        @statistic[sentPk](title="Sent packets"; source=sentPk; record=count,sum(packetBytes),vector(packetBytes); interpolationmode=none);
+        @statistic[throughput](title="Throughput"; unit=bps; record=vector,mean; interpolationmode=linear);
 }
