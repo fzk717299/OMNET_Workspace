@@ -1,0 +1,24 @@
+# Ignore directories
+.metadata/
+.vscode/
+out/
+
+# Ignore build artifacts and user-specific files
+*.o
+*.so
+*.dll
+*.exe
+*.ilk
+*.pdb
+*.exp
+*.stackdump
+
+# Ignore log and history files
+*.log
+*.bak
+*~
+.bash_history
+
+# Ignore system files
+.DS_Store
+Thumbs.db

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<config>
+    <!-- 极简配置，参照官方示例 -->
+    
+    <!-- 为所有gNodeB分配10.x.x.x地址 -->
+    <interface hosts="gNodeB*" names="cellular" address="10.x.x.x" netmask="255.0.0.0"/>
+    
+    <!-- 为车辆和RSU分配10.x.x.x地址，注意Car和NRCar使用wlan作为接口名 -->
+    <interface hosts="car[*]" names="wlan" address="10.x.x.x" netmask="255.0.0.0"/>
+    <interface hosts="rsu" names="wlan" address="10.x.x.x" netmask="255.0.0.0"/>
+    
+    <!-- 为其他所有接口分配192.168.x.x地址 -->
+    <interface hosts="*" address="192.168.x.x" netmask="255.255.255.0"/>
+</config>
