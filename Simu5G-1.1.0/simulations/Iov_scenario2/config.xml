@@ -11,4 +11,10 @@
     <multicast-group hosts="car*" address="224.0.0.10"/>
     <multicast-group hosts="rsu" address="224.0.0.10"/>
     <multicast-group hosts="server" address="224.0.0.10"/>
+
+    <!-- 显式路由：让 router 能到达 UE 使用的 10.0.0.0/8 段（经由 PGW） -->
+    <route hosts="router" destination="10.0.0.0" netmask="255.0.0.0" gateway="pgw"/>
+
+    <!-- 可选：为 RSU 指定缺省路由到 router（通常自动推导，这里显式声明） -->
+    <route hosts="rsu" destination="0.0.0.0" netmask="0.0.0.0" gateway="router"/>
 </config>

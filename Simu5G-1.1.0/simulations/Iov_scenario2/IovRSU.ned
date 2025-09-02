@@ -3,8 +3,7 @@ package simu5g.simulations.Iov_scenario2;
 import inet.node.inet.StandardHost;
 
 //
-// RSU module with an Ethernet interface to be connected to the Core Network.
-// It is a StandardHost with a custom display string.
+// RSU as a wired StandardHost connected to the router
 //
 module IovRSU extends StandardHost
 {

@@ -44,16 +44,9 @@
     <busStop id="busStop_1" lane="0/1to0/2_0" startPos="20.00" endPos="40.00"/>
     <busStop id="busStop_2" lane="2/1to2/2_0" startPos="20.00" endPos="40.00"/>
     
-    <!-- 原有停车区域 -->
+    <!-- 只保留 parkingArea_1 和 parkingArea_2，删除其他新增的停车区域 -->
     <parkingArea id="parkingArea_1" lane="0/0to1/0_0" startPos="10.00" endPos="50.00" roadsideCapacity="10"/>
     <parkingArea id="parkingArea_2" lane="2/2to1/2_0" startPos="10.00" endPos="50.00" roadsideCapacity="10"/>
-    
-    <!-- 新增停车区域 - 增加更多停车位置以支持自动泊车功能 -->
-    <parkingArea id="parkingArea_3" lane="1/0to1/1_0" startPos="15.00" endPos="45.00" roadsideCapacity="8"/>
-    <parkingArea id="parkingArea_4" lane="1/1to1/2_0" startPos="15.00" endPos="45.00" roadsideCapacity="8"/>
-    <parkingArea id="parkingArea_5" lane="0/1to1/1_0" startPos="10.00" endPos="40.00" roadsideCapacity="6"/>
-    <parkingArea id="parkingArea_6" lane="1/1to2/1_0" startPos="10.00" endPos="40.00" roadsideCapacity="6"/>
-    <parkingArea id="parkingArea_garage" lane="1/1to1/0_0" startPos="20.00" endPos="70.00" roadsideCapacity="15" name="多层停车库"/>
     
     <instantInductionLoop id="speedLimitDetector_1" lane="0/0to0/1_0" pos="107.81" file="speedLimitDetector_1.xml"/>
     <poly id="commercial1" type="building" color="136,112,136" fill="1" layer="4.00" shape="285.100000,18.440000 278.010000,187.230000 376.950000,176.590000 347.160000,23.760000 285.100000,18.440000"/>

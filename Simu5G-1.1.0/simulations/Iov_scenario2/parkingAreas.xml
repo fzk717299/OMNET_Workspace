@@ -1,11 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <parkingAreas>
     <!-- 停车区域信息，包括位置和容量 -->
-    <parkingArea id="parkingArea_1" type="ROADSIDE" x="30.0" y="5.0" capacity="10" occupied="0" priority="1" />
+    <!-- 只保留 parkingArea_1 和 parkingArea_2 -->
+    <parkingArea id="parkingArea_1" lane="0/0to1/0_0" startPos="20" endPos="40" type="ROADSIDE" x="30.0" y="5.0" capacity="10" occupied="0" priority="1" />
+    <!-- <parkingArea id="parkingArea_1" type="ROADSIDE" x="30.0" y="5.0" capacity="10" occupied="0" priority="1" /> -->
     <parkingArea id="parkingArea_2" type="ROADSIDE" x="370.0" y="395.0" capacity="10" occupied="0" priority="1" />
-    <parkingArea id="parkingArea_3" type="ROADSIDE" x="200.0" y="15.0" capacity="8" occupied="0" priority="2" />
-    <parkingArea id="parkingArea_4" type="ROADSIDE" x="200.0" y="385.0" capacity="8" occupied="0" priority="2" />
-    <parkingArea id="parkingArea_5" type="ROADSIDE" x="100.0" y="200.0" capacity="6" occupied="0" priority="3" />
-    <parkingArea id="parkingArea_6" type="ROADSIDE" x="300.0" y="200.0" capacity="6" occupied="0" priority="3" />
-    <parkingArea id="parkingArea_garage" type="GARAGE" x="200.0" y="100.0" capacity="15" occupied="0" priority="5" />
 </parkingAreas> 

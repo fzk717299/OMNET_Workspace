@@ -86,6 +86,7 @@ network IovScenario
 
     connections allowunconnected:
         server.pppg++ <--> Eth10G <--> router.pppg++;
+        // Reconnect RSU to router via Ethernet
         router.pppg++ <--> Eth10G <--> rsu.pppg++;
         router.pppg++ <--> Eth10G <--> pgw.filterGate;
         pgw.pppg++ <--> Eth10G <--> eNodeB1.ppp;
