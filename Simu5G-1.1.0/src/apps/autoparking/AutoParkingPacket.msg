@@ -1,42 +1,16 @@
-//
-// AutoParkingPacket: custom packet for auto parking applications
-//
+// AutoParkingPacket.msg
 
 import inet.common.packet.chunk.Chunk;
 
-//
-// Message types
-//
-enum AutoParkingMessageType
-{
-    AP_PARKING_COMMAND = 0;
-    AP_PARKING_RESPONSE = 1;
-    AP_PARKING_STATUS = 2;
-}
 
-//
-// Parking area types
-//
-enum ParkingAreaType
-{
-    ROADSIDE = 0;
-    LOT = 1;
-    GARAGE = 2;
-}
-
-//
-// Auto Parking application packet
-//
 class AutoParkingPacket extends inet::FieldsChunk
 {
-    AutoParkingMessageType msgType = AP_PARKING_COMMAND;
     string vehicleId;
     string parkingAreaId;
-    string destinationLaneId; // Target lane ID for SUMO navigation
-    string laneId; // Current lane ID
-    double posX;
-    double posY;
+    string destinationLaneId; // 停车场所在的车道ID
+    string laneId;            // 车辆当前车道ID
     simtime_t timestamp;
-    double distanceToParking;
-    ParkingAreaType parkingType = ROADSIDE;
+    double parkingDuration;   // 停车时长 (秒)
+    double parkingStartPos;   // 停车场在车道上的起始位置
+    double parkingEndPos;     // 停车场在车道上的结束位置
 } 

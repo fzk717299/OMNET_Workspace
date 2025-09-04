@@ -8,13 +8,13 @@
 #include <map>
 #include <set>
 #include <cmath>
-#include "apps/autoparking/AutoParkingRsuApp.h"
-#include "inet/common/packet/Packet.h"
+#include "AutoParkingRsuApp.h"
 #include "inet/networklayer/common/L3AddressResolver.h"
-#include "inet/networklayer/common/ModulePathAddress.h"
-#include "apps/autoparking/AutoParkingPacket_m.h"
-#include "veins/modules/mobility/traci/TraCIColor.h"
-#include "inet/applications/udpapp/UdpSink.h"
+#include "inet/common/packet/Packet.h"
+#include "veins/modules/mobility/traci/TraCICommandInterface.h"
+#include "veins/base/utils/Coord.h"
+#include "veins_inet/VeinsInetManager.h"
+#include "AutoParkingPacket_m.h"
 
 Define_Module(AutoParkingRsuApp);
 
@@ -23,11 +23,13 @@ simsignal_t AutoParkingRsuApp::parkingCommandSentSignal = registerSignal("parkin
 
 AutoParkingRsuApp::AutoParkingRsuApp() :
     UdpBasicApp(),
+    isParkingSlotAssigned(false),
     checkInterval(1.0),
     parkingProbability(0.5),
     parkingAreasFile("parkingAreas.xml"),
     traci(nullptr),
     manager(nullptr),
+    veinsManager(nullptr),
     checkTimer(nullptr),
     numSentParkingCommands(0)
 {
@@ -54,86 +56,72 @@ void AutoParkingRsuApp::initialize(int stage)
         parkingAreasFile = par("parkingAreasFile").stringValue();
         numSentParkingCommands = 0;
         checkTimer = new cMessage("checkTimer");
-        commandedVehicles.clear(); // 确保集合被清空
+        commandedVehicles.clear();
+        isParkingSlotAssigned = false;
         
         // 打印初始化信息
-        std::cout << "AutoParkingRsuApp初始化，阶段: LOCAL" << endl;
-        std::cout << "checkInterval = " << checkInterval << endl;
-        std::cout << "parkingProbability = " << parkingProbability << endl;
-        std::cout << "parkingAreasFile = " << parkingAreasFile << endl;
+        EV_INFO << "AutoParkingRsuApp初始化，阶段: LOCAL" << endl;
     }
     else if (stage == INITSTAGE_APPLICATION_LAYER) {
-        std::cout << "AutoParkingRsuApp初始化，阶段: APPLICATION_LAYER" << endl;
+        EV_INFO << "AutoParkingRsuApp初始化，阶段: APPLICATION_LAYER" << endl;
         
-        // 确保 socket 已正确初始化
-        if (!socket.isOpen()) {
-            socket.setOutputGate(gate("socketOut"));
-            int localPort = par("localPort");
-            socket.bind(localPort);
-            std::cout << "已初始化UDP socket，本地端口: " << localPort << endl;
-        }
-        
-        // 尝试立即连接TraCI
-        std::cout << "尝试立即连接TraCI..." << endl;
-        connectToTraCI();
-        
-        if (!traci || !manager) {
-            std::cout << "初始TraCI连接失败，将在定时器触发时重试" << endl;
-        } else {
-            std::cout << "初始TraCI连接成功" << endl;
+        // 获取VeinsManager - 不再使用dynamic_cast，避免不完整类型问题
+        cModule* managerModule = getModuleByPath("veinsManager");
+        if (managerModule) {
+            // 仅保存指针，不尝试转换类型
+            veinsManager = nullptr; // 将使用替代方法找车辆
         }
         
         // 加载停车场信息
         loadParkingAreas();
         
-        // 设置较短的初始检查间隔，以便尽快重试TraCI连接
-        scheduleAt(simTime() + 0.1, checkTimer);
-        std::cout << "已安排第一次检查，时间: " << simTime() + 0.1 << endl;
-        }
+        // 初始化UDP socket
+        socket.setOutputGate(gate("socketOut"));
+        const char *localAddress = par("localAddress");
+        socket.bind(*localAddress ? L3AddressResolver().resolve(localAddress) : L3Address(), localPort);
+        
+        // 设置socket选项
+        int timeToLive = par("timeToLive");
+        if (timeToLive != -1)
+            socket.setTimeToLive(timeToLive);
+        
+        int dscp = par("dscp");
+        if (dscp != -1)
+            socket.setDscp(dscp);
+            
+        socket.setCallback(this);
+        
+        // 启动定时器
+        scheduleAt(simTime() + checkInterval, checkTimer);
+    }
 }
 
 void AutoParkingRsuApp::connectToTraCI()
 {
-    // 已经有TraCI接口
+    if (traci && manager) {
+        return;
+    }
+    
+    cModule* module = getModuleByPath("veinsManager");
+    if (!module) {
+        EV_ERROR << "无法找到veinsManager模块" << endl;
+        return;
+    }
+    
+    manager = dynamic_cast<veins::TraCIScenarioManager*>(module);
+    if (!manager) {
+        EV_ERROR << "veinsManager模块不是TraCIScenarioManager类型" << endl;
+        return;
+    }
+    
+    if (!manager->isConnected()) {
+        EV_INFO << "TraCIScenarioManager尚未连接" << endl;
+        return;
+    }
+    
+    traci = manager->getCommandInterface();
     if (traci) {
-        std::cout << "TraCI接口已存在，无需重新获取" << endl;
-        return;
-    }
-        
-    std::cout << "尝试获取TraCI接口..." << endl;
-    
-    // 简化版本：直接尝试获取TraCIScenarioManager
-    cModule* managerModule = getModuleByPath("<root>.veinsManager");
-    if (!managerModule) {
-        std::cout << "无法找到veinsManager模块，路径: <root>.veinsManager" << endl;
-        EV_ERROR << "Could not find TraCI manager module" << endl;
-        return;
-    }
-    
-    // 尝试转换为TraCIScenarioManager
-    veins::TraCIScenarioManager* scenarioManager = dynamic_cast<veins::TraCIScenarioManager*>(managerModule);
-    if (!scenarioManager) {
-        std::cout << "TraCI manager is not of type TraCIScenarioManager" << endl;
-        EV_ERROR << "TraCI manager is not of type TraCIScenarioManager" << endl;
-        return;
-    }
-    
-    // 检查连接状态
-    if (!scenarioManager->isConnected()) {
-        std::cout << "TraCIScenarioManager未连接到SUMO" << endl;
-        EV_WARN << "TraCI连接尚未建立" << endl;
-        return;
-    }
-    
-    // 获取命令接口
-    this->manager = scenarioManager;
-    traci = scenarioManager->getCommandInterface();
-    if (traci) {
-        std::cout << "成功获取TraCI命令接口" << endl;
         EV_INFO << "成功获取TraCI命令接口" << endl;
-    } else {
-        std::cout << "无法获取TraCI命令接口" << endl;
-        EV_ERROR << "无法获取TraCI命令接口" << endl;
     }
 }
 
@@ -144,25 +132,26 @@ void AutoParkingRsuApp::handleMessageWhenUp(cMessage *msg)
         return;
     }
     
-        UdpBasicApp::handleMessageWhenUp(msg);
+    UdpBasicApp::handleMessageWhenUp(msg);
 }
 
 void AutoParkingRsuApp::handleCheckTimer()
 {
-    std::cout << "\n当前仿真时间: " << simTime() << "s" << endl;
+    EV_INFO << "RSU: handleCheckTimer called at t=" << simTime() << endl;
+    // 如果已经处理了两辆车，不再检查
+    if (commandedVehicles.size() >= 2) {
+        EV_INFO << "RSU: 已处理 " << commandedVehicles.size() << " 辆车，停止检查。" << endl;
+        return;
+    }
     
-    // 每次定时器触发时尝试连接TraCI
+    // 尝试连接TraCI
     if (!traci || !manager) {
-        std::cout << "TraCI接口未初始化，尝试重新连接..." << endl;
         connectToTraCI();
     }
     
     // 检查TraCI连接状态
     if (traci && manager) {
-        std::cout << "TraCI接口已就绪，执行车辆检查" << endl;
         checkVehiclesForParking();
-    } else {
-        std::cout << "TraCI接口仍未就绪，跳过车辆检查" << endl;
     }
     
     // 重新调度下一次检查
@@ -177,368 +166,291 @@ void AutoParkingRsuApp::loadParkingAreas()
     }
     parkingAreas.clear();
     
-    // 创建车道到停车场的映射
-    std::map<std::string, ParkingAreaInfo*> laneToParking;
+    // 硬编码 parkingArea_1 的信息
+    ParkingAreaInfo* area1 = new ParkingAreaInfo();
+    area1->id = "parkingArea_1";
+    area1->lane = "0/0to1/0_0";
+    area1->type = "ROADSIDE";
+    area1->startPos = 10.0;
+    area1->endPos = 50.0;
+    area1->x = 30.0;
+    area1->y = 5.0;
+    area1->capacity = 10;
+    area1->occupancy = 0;
     
-    try {
-        // 解析XML文件
-        cXMLElement* root = nullptr;
-        try {
-            root = getEnvir()->getXMLDocument(parkingAreasFile.c_str());
-        } catch (const std::exception& e) {
-            EV_ERROR << "解析XML文件时出错: " << e.what() << endl;
-        }
-        
-        if (!root) {
-            EV_ERROR << "无法加载停车场信息文件: " << parkingAreasFile << endl;
-            return;
-        }
-        
-        // 查找所有parkingArea元素
-        cXMLElementList parkingAreaNodes = root->getChildrenByTagName("parkingArea");
-        EV_INFO << "找到 " << parkingAreaNodes.size() << " 个停车区域" << endl;
-        
-        // 解析每个停车区域
-        for (cXMLElement* node : parkingAreaNodes) {
-            if (!node) continue;
-        
-            // 创建新的停车场信息
-            ParkingAreaInfo* area = new ParkingAreaInfo();
-            
-            // 解析属性
-            area->id = node->getAttribute("id") ? node->getAttribute("id") : "";
-            area->lane = node->getAttribute("lane") ? node->getAttribute("lane") : "";
-            area->type = node->getAttribute("type") ? node->getAttribute("type") : "default";
-            area->x = node->getAttribute("x") ? atof(node->getAttribute("x")) : 0.0;
-            area->y = node->getAttribute("y") ? atof(node->getAttribute("y")) : 0.0;
-            area->capacity = node->getAttribute("capacity") ? atoi(node->getAttribute("capacity")) : 10;
-            area->occupancy = 0; // 初始为空
-            
-            // 添加到列表
-            parkingAreas.push_back(area);
-            
-            // 添加到映射
-            if (!area->lane.empty()) {
-                laneToParking[area->lane] = area;
-            }
-            
-            EV_INFO << "加载停车区域: " << area->id << ", 位置: (" << area->x << "," << area->y 
-                    << "), 容量: " << area->capacity << endl;
-        }
-        
-        EV_INFO << "成功加载 " << parkingAreas.size() << " 个停车区域" << endl;
-    }
-    catch (const std::exception& e) {
-        EV_ERROR << "加载停车场信息时出错: " << e.what() << endl;
-    }
-    catch (...) {
-        EV_ERROR << "加载停车场信息时发生未知错误" << endl;
-    }
+    parkingAreas.push_back(area1);
+    
+    EV_INFO << "加载停车场: " << area1->id 
+           << ", 车道: " << area1->lane
+           << ", 位置: [" << area1->startPos << ", " << area1->endPos << "]" << endl;
 }
 
 void AutoParkingRsuApp::checkVehiclesForParking()
 {
-    // 检查TraCI接口是否可用
     if (!traci || !manager) {
-        EV_ERROR << "TraCI接口或管理器尚未初始化" << endl;
-        std::cout << "TraCI接口或管理器尚未初始化" << endl;
+        EV_ERROR << "RSU: TraCI 接口未初始化，无法检查车辆。" << endl;
         return;
     }
     
-    // 在多个时间点尝试发送泊车指令
-    double currentTime = simTime().dbl();
-    bool shouldSendCommand = false;
+    EV_INFO << "RSU: 开始检查车辆是否存在并发送指令..." << endl;
     
-    // 每隔 5 秒尝试发送一次，从第 5 秒开始
-    if (currentTime >= 5.0 && fmod(currentTime, 5.0) < 0.2) {
-        shouldSendCommand = true;
+    // 由于Veins不直接提供获取所有车辆的方法，直接检查我们关心的目标车辆
+    EV_INFO << "RSU: 直接检查目标车辆状态" << endl;
+    
+    // 尝试获取目标车辆信息
+    std::vector<std::string> targetIds = {"flow_high_1.0", "flow_high_3.0"};
+    for (const auto& vid : targetIds) {
+        try {
+            // 尝试获取车辆信息，如果车辆存在不会抛出异常
+            auto vehicle = traci->vehicle(vid);
+            std::string vlane = vehicle.getLaneId();
+            double vpos = vehicle.getLanePosition();
+            EV_INFO << "  检测到车辆 " << vid << " 在车道 " << vlane << " 位置 " << vpos << endl;
+        } catch (const std::exception& e) {
+            EV_WARN << "  车辆 " << vid << " 不在仿真中或无法获取信息: " << e.what() << endl;
+        }
     }
-    
-    if (!shouldSendCommand) {
-        return;
-    }
-    
-    std::cout << "执行自动泊车指令，当前时间: " << simTime() << "s" << endl;
-    
     try {
-        // 使用与SpeedLimitRsuApp相同的方法获取已管理的车辆
-        std::map<std::string, cModule*> managedHosts = manager->getManagedHosts();
-        std::cout << "成功获取managedHosts，数量: " << managedHosts.size() << endl;
+        // 硬编码目标车辆：car[2] 和 car[9]
+        // 使用用户确认的SUMO ID
+        std::vector<std::pair<int, std::string>> targetVehicles = {
+            {2, "flow_high_1.0"},  // 修正：car[2] 对应 flow_high_1.0
+            {9, "flow_high_3.0"}   // 修正：car[9] 对应 flow_high_3.0
+        };
         
-        if (managedHosts.empty()) {
-            std::cout << "没有找到已管理的车辆" << endl;
-            return;
-}
-
-        // 目标车辆ID（精确匹配和前缀匹配）
-        const std::string exactTargetId = "flow_high_3.0";
-        const std::string targetPrefix = "flow_high_3";
-        bool targetFound = false;
-        
-        // 遍历所有车辆，寻找目标车辆
-        for (auto it = managedHosts.begin(); it != managedHosts.end(); ++it) {
-            std::string sumoId = it->first;
-            cModule* module = it->second;
+        for (const auto& target : targetVehicles) {
+            int carIndex = target.first;
+            std::string sumoId = target.second;
             
-            if (sumoId.empty() || !module) {
+            EV_INFO << "RSU: 正在处理目标 car[" << carIndex << "] with SUMO ID: " << sumoId << endl;
+            // 检查是否已经处理过这辆车
+            if (commandedVehicles.find(sumoId) != commandedVehicles.end()) {
+                EV_INFO << "RSU: 车辆 " << sumoId << " 已处理过，跳过。" << endl;
                 continue;
             }
-
-            // 输出所有车辆ID，帮助调试
-            std::cout << "发现车辆: " << sumoId << endl;
             
-            // 检查是否是目标车辆（精确匹配或前缀匹配）
-            if (sumoId == exactTargetId || 
-                (sumoId.length() >= targetPrefix.length() && 
-                 sumoId.substr(0, targetPrefix.length()) == targetPrefix)) {
+            // 检查车辆是否存在 - 使用替代方法获取车辆列表
+            // 在Veins 5.2中，我们需要改用命令接口直接检查车辆是否存在
+            bool vehicleExists = false;
+            
+            try {
+                // 直接尝试获取车辆信息，如果存在就不会抛出异常
+                veins::TraCICommandInterface::Vehicle vehicle = traci->vehicle(sumoId);
+                // 如果车辆存在，尝试获取其ID确认
+                vehicleExists = true;
+                EV_INFO << "RSU: 成功通过主ID找到车辆: " << sumoId << endl;
+            } catch (std::exception& e) {
+                // 车辆不存在，保持vehicleExists为false
+                EV_DETAIL << "RSU: 主ID " << sumoId << " 未找到，尝试备选ID..." << endl;
+            }
+            
+            if (!vehicleExists) {
+                // 尝试多种可能的ID格式，包括特别关注索引0
+                std::vector<std::string> altIds = {
+                    // 用户确认的特定ID
+                    carIndex == 2 ? "flow_high_3.0" : "",  // car[2] 的确认ID
+                    carIndex == 9 ? "flow_high_1.0" : "",  // car[9] 的确认ID
+                    
+                    // 常规索引匹配
+                    "flow_high_1." + std::to_string(carIndex),
+                    "flow_high_3." + std::to_string(carIndex),
+                    "flow_fast_1." + std::to_string(carIndex),
+                    
+                    // 特殊考虑索引0的车辆
+                    "flow_high_1.0",
+                    "flow_high_3.0",
+                    
+                    // 其他可能形式
+                    "flow_low_1." + std::to_string(carIndex),
+                    "flow_medium_1." + std::to_string(carIndex),
+                    "flow." + std::to_string(carIndex),
+                    "flow_0." + std::to_string(carIndex)
+                };
                 
-                targetFound = true;
-                std::cout << "找到目标车辆: " << sumoId << endl;
+                // 检查所有备用ID
+                for (const std::string& altId : altIds) {
+                    // 跳过空字符串
+                    if (altId.empty()) continue;
+                    
+                    try {
+                        // 尝试访问车辆
+                        veins::TraCICommandInterface::Vehicle vehicle = traci->vehicle(altId);
+                        // 如果成功，更新sumoId并设置为找到
+                        sumoId = altId;
+                        vehicleExists = true;
+                        EV_INFO << "RSU: 成功通过备选ID找到车辆: " << altId << " for car[" << carIndex << "]" << endl;
+                        break;
+                    } catch (std::exception& e) {
+                        // 车辆不存在，继续尝试下一个ID
+                        continue;
+                    }
+                }
                 
-                // 检查车辆是否已经接收到命令
-                if (commandedVehicles.find(sumoId) != commandedVehicles.end()) {
-                    std::cout << "车辆 " << sumoId << " 已经接收过命令，跳过" << endl;
+                if (!vehicleExists) {
+                    EV_INFO << "RSU: car[" << carIndex << "] 的所有ID都未在仿真中找到，跳过。" << endl;
+                    continue;  // 车辆还未生成
+                }
+            }
+            
+            std::string currentLane = traci->vehicle(sumoId).getLaneId();
+            EV_INFO << "RSU: 车辆 " << sumoId << " 当前所在车道: " << currentLane << endl;
+            
+            bool onMonitoredLane = false;
+            if (monitoredLanes.find(currentLane) != std::string::npos) {
+                onMonitoredLane = true;
+            }
+            
+            if (onMonitoredLane) {
+                EV_INFO << "RSU: 车辆 " << sumoId << " 在监控车道上，准备发送指令。" << endl;
+                
+                // 查找对应的OMNeT++模块
+                cModule* carModule = nullptr;
+                std::string carModuleName = "car[" + std::to_string(carIndex) + "]";
+                
+                for (cModule::SubmoduleIterator it(getSimulation()->getSystemModule()); !it.end(); ++it) {
+                    cModule* submod = *it;
+                    if (std::string(submod->getFullName()) == carModuleName) {
+                        carModule = submod;
+                        break;
+                    }
+                }
+                
+                if (!carModule) {
+                    EV_WARN << "RSU: 找不到模块 " << carModuleName << endl;
                     continue;
                 }
                 
-                try {
-                    if (!traci) {
-                        std::cout << "TraCI接口为空，无法控制车辆" << endl;
-                        continue;
-                    }
-                    
-                    // 获取车辆当前位置
-                    double posX = 0.0;
-                    double posY = 0.0;
-                    
-                    // 使用车道ID和车道位置来估计位置
-                    std::string laneId = traci->vehicle(sumoId).getLaneId();
-                    double lanePosition = traci->vehicle(sumoId).getLanePosition();
-                    
-                    std::cout << "车辆 " << sumoId << " 当前车道: " << laneId << ", 车道位置: " << lanePosition << endl;
-                    
-                    // 查找最近的停车场
-                    ParkingAreaInfo* nearestParking = findNearestParkingArea(posX, posY);
-                    if (!nearestParking) {
-                        std::cout << "未找到可用的停车场" << endl;
-                        continue;
-            }
-
-                    std::cout << "找到最近的停车场: " << nearestParking->id 
-                              << " 位置: (" << nearestParking->x << ", " << nearestParking->y << ")" << endl;
-                    
-                    // 计算到停车场的距离
-                    double dx = nearestParking->x - posX;
-                    double dy = nearestParking->y - posY;
-                    double distanceToParking = std::sqrt(dx*dx + dy*dy);
-                    
-                    // 设置车辆颜色为白色
-                    traci->vehicle(sumoId).setColor(veins::TraCIColor(255, 255, 255, 255));
-                    std::cout << "已将车辆 " << sumoId << " 颜色设置为白色" << endl;
-                    
-                    // 查找车辆的应用程序模块
-                    cModule* carApp = module->getSubmodule("app", 0);
-                    
-                    if (!carApp) {
-                        std::cout << "无法找到车辆 " << sumoId << " 的应用程序模块" << endl;
-                        
-                        // 打印车辆模块的详细信息，帮助调试
-                        std::cout << "车辆模块信息: " << module->getFullPath() << ", 类型: " << module->getClassName() << endl;
-                        
-                        // 打印车辆模块的子模块
-                        for (cModule::SubmoduleIterator it(module); !it.end(); it++) {
-                            cModule* submod = *it;
-                            std::cout << " - 子模块: " << submod->getFullName() << " (" << submod->getClassName() << ")" << endl;
-                            
-                            // 打印子模块的子模块
-                            for (cModule::SubmoduleIterator subit(submod); !subit.end(); subit++) {
-                                cModule* subsubmod = *subit;
-                                std::cout << "   - 子子模块: " << subsubmod->getFullName() << " (" << subsubmod->getClassName() << ")" << endl;
-                            }
-                        }
-                        continue;
-                    }
-                    
-                    std::cout << "找到车辆应用程序模块: " << carApp->getFullPath() << ", 类型: " << carApp->getClassName() << endl;
-                    
-                    // 创建并发送泊车指令数据包
-                    Packet* packet = createParkingCommandPacket(sumoId, nearestParking->id, distanceToParking, laneId, nearestParking->lane);
-                    
-                    // 获取车辆的目的地地址
-                    L3Address destAddr;
-                    try {
-                        // 使用车辆模块的路径解析地址，而不是应用程序模块
-                        std::string hostPath = module->getFullPath();
-                        std::cout << "尝试解析车辆模块地址: " << hostPath << endl;
-                        destAddr = L3AddressResolver().resolve(hostPath.c_str());
-                        std::cout << "成功解析车辆模块地址: " << destAddr.str() << endl;
-                    } catch (const std::exception& e) {
-                        std::cout << "无法解析车辆模块地址: " << e.what() << endl;
-                        
-                        // 尝试使用其他方法
-                        try {
-                            // 尝试使用车辆模块的网络层地址
-                            cModule* networkLayer = module->getSubmodule("ipv4");
-                            if (!networkLayer) {
-                                networkLayer = module->getSubmodule("networkLayer");
-                                if (networkLayer) {
-                                    networkLayer = networkLayer->getSubmodule("ipv4");
-                                }
-                            }
-                            
-                            if (networkLayer) {
-                                std::string networkPath = networkLayer->getFullPath();
-                                std::cout << "尝试解析网络层地址: " << networkPath << endl;
-                                destAddr = L3AddressResolver().resolve(networkPath.c_str());
-                                std::cout << "成功解析网络层地址: " << destAddr.str() << endl;
-                            }
-                        } catch (const std::exception& e) {
-                            std::cout << "无法解析网络层地址: " << e.what() << endl;
-                        }
-                    }
-                    
-                    if (destAddr.isUnspecified()) {
-                        std::cout << "无法获取车辆 " << sumoId << " 的地址，放弃发送" << endl;
-                        delete packet;
-                        continue;
-                    }
-                    
-                    // 计算目标车辆的唯一端口（回退方案）
-                    int baseDestPort = par("destPort");
-                    int uniqueDestPort = baseDestPort + module->getId();
-
-                    // 优先读取车辆应用实例实际绑定端口
-                    int appLocalPort = -1;
-                    try {
-                        if (carApp->hasPar("localPort")) {
-                            appLocalPort = (int)carApp->par("localPort");
-                        }
-                    } catch (...) {
-                        appLocalPort = -1;
-                    }
-
-                    int destPortToUse = appLocalPort > 0 ? appLocalPort : uniqueDestPort;
-                    std::cout << "将向车辆应用发送，computedPort=" << uniqueDestPort
-                              << ", appLocalPort=" << appLocalPort
-                              << ", finalDestPort=" << destPortToUse << std::endl;
-                    
-                    socket.sendTo(packet, destAddr, destPortToUse);
-                    EV_INFO << "已向车辆 " << sumoId << " 发送泊车指令，目标地址: " << destAddr.str() << ", 端口: " << destPortToUse;
-                    
-                    // 增加停车场占用
-                    nearestParking->occupancy++;
-                    
-                    // 将车辆添加到已命令列表
-                    commandedVehicles.insert(sumoId);
-                    
-                    // 统计信息
-                    numSentParkingCommands++;
-                    
-                    // 发出信号
-                    emit(parkingCommandSentSignal, 1);
-                    
-                } catch (const std::exception& e) {
-                    std::cout << "控制车辆 " << sumoId << " 时发生异常: " << e.what() << endl;
-                }
+                // 发送泊车指令
+                sendParkingCommandToModule(carModule, sumoId, "parkingArea_1");
+                
+                // 标记已处理
+                commandedVehicles.insert(sumoId);
+                
+                EV_INFO << "RSU: 已向 " << carModuleName << " 发送泊车指令" << endl;
             }
         }
         
-        if (!targetFound) {
-            std::cout << "未找到目标车辆: " << exactTargetId << " 或前缀为 " << targetPrefix << " 的车辆，可能尚未生成或已离开仿真" << endl;
-    }
     } catch (const std::exception& e) {
-        std::cout << "checkVehiclesForParking中发生异常: " << e.what() << endl;
-    } catch (...) {
-        std::cout << "checkVehiclesForParking中发生未知异常" << endl;
+        EV_ERROR << "RSU: 检查车辆时出错: " << e.what() << endl;
     }
 }
+
+void AutoParkingRsuApp::sendParkingCommandToModule(cModule* carModule, const std::string& sumoId, const std::string& parkingAreaId)
+{
+    EV_INFO << "RSU: 进入 sendParkingCommandToModule for vehicle " << sumoId << endl;
+    try {
+        // 获取停车场信息
+        ParkingAreaInfo* parkingArea = nullptr;
+        for (auto area : parkingAreas) {
+            if (area->id == parkingAreaId) {
+                parkingArea = area;
+                break;
+            }
+        }
+        
+        if (!parkingArea) {
+            EV_ERROR << "RSU: 找不到停车场 " << parkingAreaId << endl;
+            return;
+        }
+        
+        // 获取车辆地址
+        std::string fullPath = carModule->getFullPath();
+        L3Address destAddr = L3AddressResolver().resolve(fullPath.c_str());
+        EV_INFO << "RSU: 解析得到目标地址: " << destAddr.str() << " for path " << fullPath << endl;
+        
+        // 获取车辆应用端口
+        cModule* appModule = carModule->getSubmodule("app", 0);
+        if (!appModule) {
+            EV_ERROR << "RSU: 找不到车辆应用模块" << endl;
+            return;
+        }
+        int destPort = appModule->par("localPort");
+        EV_INFO << "RSU: 解析得到目标端口: " << destPort << endl;
+        
+        // 获取车辆当前车道
+        std::string currentLane = "";
+        try {
+            currentLane = traci->vehicle(sumoId).getLaneId();
+            EV_INFO << "RSU: 车辆 " << sumoId << " 当前所在车道: " << currentLane << endl;
+        } catch (const std::exception& e) {
+            EV_ERROR << "RSU: 获取车辆 " << sumoId << " 当前车道失败: " << e.what() << endl;
+        }
+        
+        // 创建泊车指令数据包
+        auto data = inet::makeShared<AutoParkingPacket>();
+        data->setChunkLength(inet::B(256));
+        data->setVehicleId(sumoId.c_str());
+        data->setParkingAreaId(parkingAreaId.c_str());
+        data->setTimestamp(simTime());
+        data->setParkingDuration(300.0);
+        data->setDestinationLaneId(parkingArea->lane.c_str());
+        data->setLaneId(currentLane.c_str());  // 设置车辆当前车道
+        data->setParkingStartPos(parkingArea->startPos);
+        data->setParkingEndPos(parkingArea->endPos);
+        
+        EV_INFO << "RSU: 创建泊车指令 - 车辆ID: " << sumoId 
+               << ", 停车场ID: " << parkingAreaId
+               << ", 目标车道: " << parkingArea->lane
+               << ", 停车位置: [" << parkingArea->startPos << ", " << parkingArea->endPos << "]" << endl;
+        
+        std::string packetName = "parkingCmd-" + sumoId;
+        inet::Packet *packet = new inet::Packet(packetName.c_str());
+        packet->insertAtBack(data);
+        
+        EV_INFO << "RSU: 准备发送UDP包到 " << destAddr.str() << ":" << destPort << endl;
+        // 发送数据包
+        socket.sendTo(packet, destAddr, destPort);
+        
+        numSentParkingCommands++;
+        emit(parkingCommandSentSignal, 1);
+        
+        EV_INFO << "RSU: 发送泊车指令到 " << destAddr.str() << ":" << destPort 
+               << " 停车场: " << parkingAreaId << endl;
+        
+    } catch (const std::exception& e) {
+        EV_ERROR << "RSU: 发送泊车指令时出错: " << e.what() << endl;
+    }
+}
+
+// 以下是辅助函数的简单实现
 
 ParkingAreaInfo* AutoParkingRsuApp::findNearestParkingArea(double x, double y)
 {
     if (parkingAreas.empty()) {
         return nullptr;
     }
-    
-    ParkingAreaInfo* nearest = nullptr;
-    double minDistance = std::numeric_limits<double>::max();
-    
-    try {
-        for (auto area : parkingAreas) {
-            if (!area) continue;
-            
-            // 检查停车场是否已满
-            if (area->occupancy >= area->capacity) {
-                continue;
-            }
-            
-            // 计算距离
-            double dx = area->x - x;
-            double dy = area->y - y;
-            double distance = std::sqrt(dx*dx + dy*dy);
-            
-            // 更新最近的停车场
-            if (distance < minDistance) {
-                minDistance = distance;
-                nearest = area;
-            }
-        }
-    } catch (const std::exception& e) {
-        EV_ERROR << "查找最近停车场时出错: " << e.what() << endl;
-    } catch (...) {
-        EV_ERROR << "查找最近停车场时发生未知错误" << endl;
-    }
-    
-    return nearest;
+    return parkingAreas[0];  // 返回第一个（也是唯一的）停车场
 }
 
-Packet* AutoParkingRsuApp::createParkingCommandPacket(const std::string& vehicleId, const std::string& parkingAreaId, double distanceToParking, const std::string& currentLaneId, const std::string& destinationLaneId)
+double AutoParkingRsuApp::calculateDistance(double x1, double y1, double x2, double y2)
 {
-    // 创建泊车指令数据包
-    auto data = makeShared<AutoParkingPacket>();
-    
-    // 设置数据包长度
-    B messageLength = B(par("messageLength"));
-    data->setChunkLength(messageLength);
-    
-    // 设置数据包内容
-    data->setMsgType(AP_PARKING_COMMAND);
-    data->setVehicleId(vehicleId.c_str());
-    data->setParkingAreaId(parkingAreaId.c_str());
-    data->setDistanceToParking(distanceToParking);
-    data->setTimestamp(simTime());
-    data->setPosX(0);  // 这些值目前未使用
-    data->setPosY(0);
-    
-    // 设置当前车道和目标车道
-    if (!currentLaneId.empty()) {
-        data->setLaneId(currentLaneId.c_str());
-    }
-    if (!destinationLaneId.empty()) {
-        data->setDestinationLaneId(destinationLaneId.c_str());
-    }
-    
-    // 创建数据包
-    std::string packetName = "parkingCommand-" + vehicleId;
-    Packet *packet = new Packet(packetName.c_str());
-    
-    // 插入数据
-    packet->insertAtBack(data);
-    
-    std::cout << "创建泊车指令数据包: " << packetName 
-              << ", 目标车辆: " << vehicleId 
-              << ", 停车场: " << parkingAreaId 
-              << ", 目标车道: " << destinationLaneId
-              << ", 长度: " << messageLength << endl;
-    
-    return packet;
+    double dx = x2 - x1;
+    double dy = y2 - y1;
+    return std::sqrt(dx*dx + dy*dy);
+}
+
+bool AutoParkingRsuApp::getTraCIInterface()
+{
+    return (traci != nullptr && manager != nullptr);
+}
+
+void AutoParkingRsuApp::findAndSendParkingCommand(const std::string& vehId)
+{
+    // 这个函数在简化版本中不使用
+}
+
+Packet* AutoParkingRsuApp::createParkingCommandPacket(const std::string& vehicleId, const std::string& parkingAreaId, 
+                                              double distanceToParking, const std::string& currentLaneId, 
+                                              const std::string& destinationLaneId)
+{
+    // 这个函数在简化版本中不使用
+    return nullptr;
 }
 
 void AutoParkingRsuApp::finish()
 {
-    // 调用基类的finish方法
     UdpBasicApp::finish();
     
-    // 输出统计信息
     EV_INFO << "发送的泊车指令数量: " << numSentParkingCommands << endl;
     recordScalar("sentParkingCommands", numSentParkingCommands);
-} 
+}

@@ -1,8 +1,15 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<!-- 
+    停车区域信息.
+    注意: 这里的配置必须与 heterogeneous.add.xml 中的定义严格保持一致.
+    - 'id', 'lane', 'startPos', 'endPos' 必须完全匹配.
+    - 'capacity' 的值必须与 heterogeneous.add.xml 中的 'roadsideCapacity' 值相同.
+    - 'x', 'y' 是为了方便Simu5G内部计算距离，应设为停车区域在SUMO场景中的大致中心点坐标.
+-->
 <parkingAreas>
-    <!-- 停车区域信息，包括位置和容量 -->
-    <!-- 只保留 parkingArea_1 和 parkingArea_2 -->
-    <parkingArea id="parkingArea_1" lane="0/0to1/0_0" startPos="20" endPos="40" type="ROADSIDE" x="30.0" y="5.0" capacity="10" occupied="0" priority="1" />
-    <!-- <parkingArea id="parkingArea_1" type="ROADSIDE" x="30.0" y="5.0" capacity="10" occupied="0" priority="1" /> -->
-    <parkingArea id="parkingArea_2" type="ROADSIDE" x="370.0" y="395.0" capacity="10" occupied="0" priority="1" />
+    <!-- 停车场1: 与SUMO中 parkingArea_1 对应 -->
+    <parkingArea id="parkingArea_1" lane="0/0to1/0_0" startPos="10.00" endPos="50.00" type="ROADSIDE" x="30.0" y="5.0" capacity="10" occupied="0" priority="1" />
+    
+    <!-- 停车场2: 与SUMO中 parkingArea_2 对应 -->
+    <parkingArea id="parkingArea_2" lane="2/2to1/2_0" startPos="10.00" endPos="50.00" type="ROADSIDE" x="370.0" y="395.0" capacity="10" occupied="0" priority="1" />
 </parkingAreas> 

@@ -14,7 +14,9 @@ simple AutoParkingCarApp extends UdpSink
         double responseTime @unit(s) = default(1.0s);
         
         // 泊车完成后最大等待时间
-        double maxWaitingTime @unit(s) = default(300s);
+        double maxWaitingTime @unit(s) = default(100s); // 在泊车点最长等待时间
+        double checkInterval @unit(s) = default(1s);    // 新增: 检查车辆位置的时间间隔
+        @display("i=block/sink");
         
         // 信号声明
         @signal[parkingCommandReceived](type=long);

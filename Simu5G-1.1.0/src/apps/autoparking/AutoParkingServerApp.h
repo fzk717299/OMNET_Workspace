@@ -15,6 +15,13 @@
 
 using namespace inet;
 
+// 停车区域类型枚举
+enum ParkingAreaType {
+    ROADSIDE,   // 路边停车
+    LOT,        // 停车场
+    GARAGE      // 车库
+};
+
 // 停车区域信息结构体
 struct ParkingAreaInfo {
     std::string id;          // 停车区域ID

@@ -184,11 +184,15 @@ void AutoParkingServerApp::processParkingRequest(Packet *packet)
         
         // 提取请求信息
         std::string vehicleId = parkingRequest->getVehicleId();
-        double posX = parkingRequest->getPosX();
-        double posY = parkingRequest->getPosY();
+        std::string currentLaneId = parkingRequest->getLaneId();
+        
+        // 由于新版本的AutoParkingPacket不再包含posX和posY，
+        // 我们将使用默认值或从其他信息中获取位置
+        double posX = 0.0;
+        double posY = 0.0;
         
         EV_INFO << "Processing parking request for vehicle " << vehicleId
-               << " at position (" << posX << "," << posY << ")" << endl;
+               << " on lane " << currentLaneId << endl;
         
         // 根据策略找到合适的停车区域
         ParkingAreaInfo* parkingArea = nullptr;
@@ -306,15 +310,18 @@ Packet* AutoParkingServerApp::createParkingCommandPacket(const std::string& vehi
     Packet *packet = new Packet("parkingCommand");
     const auto& payload = makeShared<AutoParkingPacket>();
     
-    // 设置数据包内容
+    // 设置数据包内容，适配新的AutoParkingPacket结构
     payload->setVehicleId(vehicleId.c_str());
     payload->setParkingAreaId(parkingAreaId.c_str());
-    payload->setDestinationLaneId(laneId.c_str()); // 新增：设置目标车道ID
-    payload->setPosX(posX);
-    payload->setPosY(posY);
-    payload->setTimestamp(simTime().dbl());
-    payload->setDistanceToParking(distanceToParking);
-    payload->setParkingType(parkingType);
+    payload->setDestinationLaneId(laneId.c_str());
+    payload->setLaneId(""); // 车辆当前车道ID，由车辆应用填充
+    payload->setTimestamp(simTime());
+    payload->setParkingDuration(300.0); // 默认停车时长5分钟
+    
+    // 为了支持自动泊车，我们需要设置停车场在车道上的起始和结束位置
+    // 这里使用默认值，实际应用中应该从停车场信息中获取
+    payload->setParkingStartPos(0.0);
+    payload->setParkingEndPos(10.0);
     
     // 设置数据块长度并插入payload
     payload->setChunkLength(payloadLength);
