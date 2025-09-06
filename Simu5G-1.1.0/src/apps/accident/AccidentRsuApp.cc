@@ -299,14 +299,25 @@ inet::Packet* AccidentRsuApp::createLaneChangePacket(const veins::Coord& acciden
     EV_INFO << "****** [RSU] 创建变道指令数据包 ******" << endl;
     EV_INFO << "****** 原始车道: " << originalLane << ", 目标车道: " << targetLane << " ******" << endl;
     EV_INFO << "****** 事故位置: (" << accidentPos.x << ", " << accidentPos.y << ") ******" << endl;
+    
+    std::cout << "****** [DIRECT OUTPUT] AccidentRsuApp::createLaneChangePacket - 创建变道指令数据包 ******" << std::endl;
+    
     auto payload = makeShared<AccidentPacket>();
     payload->setMsgType(ACC_LANE_CHANGE_CMD);
     payload->setOriginalLaneId(originalLane.c_str());
     payload->setTargetLaneId(targetLane.c_str());
     payload->setAccidentPosX(accidentPos.x);
     payload->setAccidentPosY(accidentPos.y);
+    
+    // 设置正确的数据包长度，确保单位一致
+    payload->setChunkLength(B(256)); // 使用固定大小，确保与配置中的messageLength一致
+    
     auto pk = new Packet("LaneChangeCommand");
     pk->insertAtBack(payload);
+    
+    std::cout << "****** [DIRECT OUTPUT] AccidentRsuApp::createLaneChangePacket - 数据包已创建，大小: " 
+              << pk->getByteLength() << " 字节 ******" << std::endl;
+    
     EV_INFO << "****** 变道指令数据包已创建 ******" << endl;
     return pk;
 }

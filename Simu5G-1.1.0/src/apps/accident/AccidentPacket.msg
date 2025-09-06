@@ -4,6 +4,7 @@
 
 import inet.common.INETDefs;
 import inet.common.packet.chunk.Chunk;
+import inet.common.Units;
 
 namespace inet;
 
@@ -18,6 +19,9 @@ enum AccidentMsgType {
 //
 class AccidentPacket extends FieldsChunk
 {
+    // 设置默认大小为256字节
+    chunkLength = B(256);
+    
     // 消息类型
     int msgType @enum(AccidentMsgType) = ACC_LANE_CHANGE_CMD;
 

@@ -142,6 +142,12 @@ void AccidentCarApp::triggerAccident()
 
 void AccidentCarApp::processPacket(Packet *packet)
 {
+    // 只有当数据包名称包含"LaneChangeCommand"时才输出日志
+    if (strstr(packet->getName(), "LaneChangeCommand") != nullptr) {
+        std::cout << "\n\n\n****** [DIRECT OUTPUT] AccidentCarApp::processPacket - 车辆 " << getSumoId() 
+                  << " 收到数据包: " << packet->getName() << " ******\n\n\n" << std::endl;
+    }
+    
     UdpSink::processPacket(packet);
     
     simtime_t delay = simTime() - packet->getCreationTime();
@@ -152,14 +158,28 @@ void AccidentCarApp::processPacket(Packet *packet)
         if (chunk) {
             const auto accidentCmd = dynamicPtrCast<const AccidentPacket>(chunk);
             if (accidentCmd) {
+                std::cout << "****** [DIRECT OUTPUT] AccidentCarApp - 收到AccidentPacket，类型: " 
+                          << accidentCmd->getMsgType() << " ******" << std::endl;
+                
                 // 现在只处理变道命令
                 if (accidentCmd->getMsgType() == ACC_LANE_CHANGE_CMD) {
+                    std::cout << "****** [DIRECT OUTPUT] AccidentCarApp - 处理变道命令 ******" << std::endl;
                     processLaneChangeCommand(accidentCmd.get());
+                } else {
+                    std::cout << "****** [DIRECT OUTPUT] AccidentCarApp - 不支持的包类型: " 
+                              << accidentCmd->getMsgType() << " ******" << std::endl;
                 }
+            } else if (strstr(packet->getName(), "LaneChangeCommand") != nullptr) {
+                std::cout << "****** [DIRECT OUTPUT] AccidentCarApp - 无法将数据包转换为AccidentPacket ******" << std::endl;
             }
+        } else if (strstr(packet->getName(), "LaneChangeCommand") != nullptr) {
+            std::cout << "****** [DIRECT OUTPUT] AccidentCarApp - 数据包没有数据块 ******" << std::endl;
         }
     }
     catch (const std::exception& e) {
+        if (strstr(packet->getName(), "LaneChangeCommand") != nullptr) {
+            std::cout << "****** [DIRECT OUTPUT] AccidentCarApp - 处理数据包时出错: " << e.what() << " ******" << std::endl;
+        }
         EV_WARN << "Error processing packet: " << e.what() << endl;
     }
     delete packet;
@@ -167,40 +187,112 @@ void AccidentCarApp::processPacket(Packet *packet)
 
 void AccidentCarApp::processLaneChangeCommand(const inet::AccidentPacket* cmd)
 {
+    std::cout << "\n\n\n****** [DIRECT OUTPUT] AccidentCarApp::processLaneChangeCommand - 车辆 " 
+              << getSumoId() << " ******\n\n\n" << std::endl;
+    
     if (isEvading_ || state_ != NORMAL) {
+        std::cout << "****** [DIRECT OUTPUT] AccidentCarApp - 车辆 " << getSumoId() 
+                  << " 已经在执行变道或不在正常状态，忽略命令 ******" << std::endl;
         EV_INFO << "Vehicle " << getSumoId() << " is already evading or not in normal state. Ignoring command." << endl;
         return;
     }
+    
+    std::cout << "****** [DIRECT OUTPUT] AccidentCarApp - 车辆 " << getSumoId() 
+              << " 接收到变道命令 ******" << std::endl;
     EV_INFO << "Vehicle " << getSumoId() << " received lane change command." << endl;
 
     originalLaneId_ = cmd->getOriginalLaneId();
     targetLaneId_ = cmd->getTargetLaneId();
     accidentPos_ = Coord(cmd->getAccidentPosX(), cmd->getAccidentPosY());
 
+    std::cout << "****** [DIRECT OUTPUT] AccidentCarApp - 原始车道: " << originalLaneId_ 
+              << ", 目标车道: " << targetLaneId_ 
+              << ", 事故位置: (" << accidentPos_.x << ", " << accidentPos_.y << ") ******" << std::endl;
+    
     startEvasionManeuver();
 }
 
 void AccidentCarApp::startEvasionManeuver()
 {
     if (!getTraCIInterface()) {
+        std::cout << "****** [DIRECT OUTPUT] AccidentCarApp::startEvasionManeuver - TraCI接口不可用，无法开始变道 ******" << std::endl;
         EV_ERROR << "TraCI interface not found, cannot start evasion." << endl;
         return;
     }
 
-    EV_INFO << "Vehicle " << getSumoId() << " starting evasion: making current lane undesirable." << endl;
+    std::cout << "\n\n\n****** [DIRECT OUTPUT] AccidentCarApp::startEvasionManeuver - 车辆 " << getSumoId() 
+              << " 开始执行变道操作 ******\n\n\n" << std::endl;
+    EV_INFO << "Vehicle " << getSumoId() << " starting evasion maneuver to target lane " << targetLaneId_ << endl;
+    
     state_ = EVADING;
     isEvading_ = true;
     try {
-        // 让当前道路的通行成本变得非常高，以促使SUMO自动变道
         std::string currentRoadId = originalLaneId_.substr(0, originalLaneId_.find_last_of('_'));
-        traci_->vehicle(getSumoId()).changeRoute(currentRoadId, 9999);
-    } catch (const std::exception& e) {
-        EV_ERROR << "TraCI error during lane change maneuver: " << e.what() << endl;
+        int currentLaneIndex = std::stoi(originalLaneId_.substr(originalLaneId_.find_last_of('_') + 1));
+        int targetLaneIndex = std::stoi(targetLaneId_.substr(targetLaneId_.find_last_of('_') + 1));
+
+        std::cout << "****** [DIRECT OUTPUT] 当前道路: " << currentRoadId 
+                  << ", 当前车道索引: " << currentLaneIndex << " ******" << std::endl;
+        std::cout << "****** [DIRECT OUTPUT] 目标道路: " << targetLaneId_.substr(0, targetLaneId_.find_last_of('_'))
+                  << ", 目标车道索引: " << targetLaneIndex << " ******" << std::endl;
+
+        EV_INFO << "****** 当前道路: " << currentRoadId << ", 当前车道索引: " << currentLaneIndex << " ******" << endl;
+        EV_INFO << "****** 目标道路: " << targetLaneId_.substr(0, targetLaneId_.find_last_of('_'))
+                << ", 目标车道索引: " << targetLaneIndex << " ******" << endl;
+
+        if (targetLaneIndex != currentLaneIndex) {
+            double originalSpeed = traci_->vehicle(getSumoId()).getSpeed();
+            std::cout << "****** [DIRECT OUTPUT] 原始速度: " << originalSpeed << " m/s ******" << std::endl;
+            EV_INFO << "****** 原始速度: " << originalSpeed << " m/s ******" << endl;
+            
+            traci_->vehicle(getSumoId()).setSpeed(20.0);
+            std::cout << "****** [DIRECT OUTPUT] 设置新速度: 20.0 m/s ******" << std::endl;
+            EV_INFO << "****** 设置新速度: 20.0 m/s ******" << endl;
+
+            std::string targetRoadId = targetLaneId_.substr(0, targetLaneId_.find_last_of('_'));
+
+            if (targetRoadId == currentRoadId) {
+                std::cout << "****** [DIRECT OUTPUT] 同一道路上的不同车道，尝试设置变道参数 ******" << std::endl;
+                EV_INFO << "****** 同一道路上的不同车道，尝试设置变道参数 ******" << endl;
+                
+                traci_->vehicle(getSumoId()).setParameter("laneChangeMode", "0");
+                traci_->vehicle(getSumoId()).setParameter("desiredLane", std::to_string(targetLaneIndex));
+                std::cout << "****** [DIRECT OUTPUT] laneChangeMode=0, desiredLane=" << targetLaneIndex << " ******" << std::endl;
+                EV_INFO << "****** laneChangeMode=0, desiredLane=" << targetLaneIndex << " ******" << endl;
+            }
+            else {
+                std::cout << "****** [DIRECT OUTPUT] 不同道路，使用newRoute到目标道路: " << targetRoadId << " ******" << std::endl;
+                EV_INFO << "****** 不同道路，使用newRoute到目标道路: " << targetRoadId << " ******" << endl;
+                
+                traci_->vehicle(getSumoId()).newRoute(targetRoadId);
+                std::cout << "****** [DIRECT OUTPUT] newRoute命令已执行 ******" << std::endl;
+                EV_INFO << "****** newRoute命令已执行 ******" << endl;
+            }
+            
+            std::cout << "****** [DIRECT OUTPUT] 额外尝试: 设置其他变道相关参数 ******" << std::endl;
+            EV_INFO << "****** 额外尝试: 设置其他变道相关参数 ******" << endl;
+            
+            traci_->vehicle(getSumoId()).setParameter("lane", std::to_string(targetLaneIndex));
+            try {
+                int currentSelectedLane = traci_->vehicle(getSumoId()).getLaneIndex();
+                std::cout << "****** [DIRECT OUTPUT] 当前选择的车道索引: " << currentSelectedLane << " ******" << std::endl;
+                EV_INFO << "****** 当前选择的车道索引: " << currentSelectedLane << " ******" << endl;
+            } catch (...) {
+                std::cout << "****** [DIRECT OUTPUT] 无法获取当前选择的车道索引 ******" << std::endl;
+                EV_INFO << "****** 无法获取当前选择的车道索引 ******" << endl;
+            }
+        }
+    }
+    catch (const std::exception& e) {
+        std::cout << "****** [DIRECT OUTPUT] [车辆 " << getSumoId() << "] 变道操作出错: " << e.what() << " ******" << std::endl;
+        EV_ERROR << "****** [车辆 " << getSumoId() << "] 变道操作出错: " << e.what() << " ******" << endl;
         isEvading_ = false;
         state_ = NORMAL;
         return;
     }
-
+    
+    std::cout << "****** [DIRECT OUTPUT] 定时检查器已设置，1秒后检查变道状态 ******" << std::endl;
+    EV_INFO << "****** 定时检查器已设置，1秒后检查变道状态 ******" << endl;
     scheduleAt(simTime() + 1.0, checkPositionTimer_);
 }
 
