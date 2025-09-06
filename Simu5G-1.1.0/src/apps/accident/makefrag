@@ -1,0 +1,15 @@
+# 指定此目录中的源文件属于 simu5g 库的一部分
+LOCAL_LIBS += ../../../bin/$(LIB_PREFIX)simu5g$(LIB_SUFFIX)
+
+# 定义此目录的名称
+NAME = apps/accident
+
+# 列出需要编译的C++源文件
+SRCS = \
+    AccidentPacket_m.cc \
+    AccidentRsuApp.cc \
+    AccidentServerApp.cc \
+    AccidentCarApp.cc
+
+# 指定头文件的搜索路径，以便编译器可以找到.h文件
+INCLUDE_PATH = -I$(abspath ./) 

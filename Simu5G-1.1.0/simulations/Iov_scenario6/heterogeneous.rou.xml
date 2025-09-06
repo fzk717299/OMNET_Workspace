@@ -1,0 +1,49 @@
+<routes>
+  <!--Namespace(N=75, filecount=None, input='routes.txt', launch=False, output='singleIntersection.rou.xml', quarter=100)-->
+  <!-- 定义不同类型的车辆 -->
+  <vType id="car_normal" accel="2.6" decel="4.5" sigma="0.5" length="5" minGap="2.5" maxSpeed="29" color="1,1,0" guiShape="passenger"/>
+  <vType id="car_aggressive" accel="3.0" decel="6.0" sigma="0.8" length="5" minGap="1.5" maxSpeed="35" color="1,0,0" guiShape="passenger"/>
+  <vType id="car_cautious" accel="1.8" decel="3.5" sigma="0.3" length="5" minGap="3.5" maxSpeed="25" color="0,1,0" guiShape="passenger"/>
+  <vType id="truck" accel="1.5" decel="3.5" sigma="0.5" length="10" minGap="3.0" maxSpeed="27" color="0,0,1" guiShape="truck"/>
+  <vType id="bus" accel="1.2" decel="3.0" sigma="0.4" length="12" minGap="2.5" maxSpeed="25" color="1,0,1" guiShape="bus"/>
+  
+  <!-- 保留原始路线定义 -->
+  <route id="1" edges="1/0to1/1 1/1to1/2"/>
+  <route id="2" edges="1/2to1/1 1/1to1/0"/>
+  <route id="3" edges="2/1to1/1 1/1to0/1"/>
+  <route id="4" edges="0/1to1/1 1/1to2/1"/>
+  
+  <!-- 添加更多路线 -->
+  <route id="5" edges="0/0to1/0 1/0to2/0 2/0to2/1 2/1to2/2"/>  <!-- 对角线路线 -->
+  <route id="6" edges="0/0to0/1 0/1to0/2 0/2to1/2 1/2to2/2"/>  <!-- 外围路线 -->
+  <route id="7" edges="0/0to1/0 1/0to1/1 1/1to1/2 1/2to2/2"/>  <!-- Z字形路线 -->
+  <route id="8" edges="2/0to1/0 1/0to0/0 0/0to0/1 0/1to0/2"/>  <!-- L字形路线 -->
+  
+  <!-- 保留一些原始车辆 -->
+  <vehicle id="0" type="car_normal" route="2" depart="0" color="1,0,1"/>
+  <vehicle id="1" type="car_normal" route="3" depart="0"/>
+  
+  <!-- 低密度区域 - 郊区道路 -->
+  <flow id="flow_low_1" type="car_normal" begin="0" end="3600" number="50" route="1" color="1,1,0"/>
+  <flow id="flow_low_2" type="car_cautious" begin="0" end="3600" number="30" route="4" color="0,1,0"/>
+  
+  <!-- 中密度区域 - 城市道路 -->
+  <flow id="flow_medium_1" type="car_normal" begin="9" end="3600" number="150" route="2" color="1,1,0"/>
+  <flow id="flow_medium_2" type="car_aggressive" begin="0" end="3600" number="100" route="3" color="1,0,0"/>
+  <flow id="flow_medium_3" type="truck" begin="0" end="3600" number="20" route="4" color="0,0,1"/>
+  
+  <!-- 高密度区域 - 拥堵区域 -->
+  <flow id="flow_high_1" type="car_normal" begin="0" end="3600" number="300" route="5" color="1,1,0"/>
+  <flow id="flow_high_2" type="car_aggressive" begin="0" end="3600" number="200" route="6" color="1,0,0"/>
+  <flow id="flow_high_3" type="car_cautious" begin="0" end="3600" number="150" route="7" color="0,1,0"/>
+  <flow id="flow_high_4" type="bus" begin="0" end="3600" number="30" route="8" color="1,0,1"/>
+  
+  <!-- 突发流量 - 模拟交通事故后的情况 -->
+  <flow id="flow_burst_1" type="car_normal" begin="500" end="700" number="100" route="1" color="1,1,0"/>
+  <flow id="flow_burst_2" type="car_aggressive" begin="500" end="700" number="60" route="4" color="1,0,0"/>
+  
+  <!-- 高速移动车辆 - 测试快速切换 -->
+  <flow id="flow_fast_1" type="car_aggressive" begin="0" end="3600" number="50" route="5" color="1,0,0"/>
+  <flow id="flow_fast_2" type="car_aggressive" begin="0" end="3600" number="50" route="6" color="1,0,0"/>
+</routes>
+ 

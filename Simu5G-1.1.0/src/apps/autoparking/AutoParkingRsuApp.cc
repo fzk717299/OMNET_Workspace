@@ -191,9 +191,9 @@ void AutoParkingRsuApp::loadParkingAreas()
         
         if (!root) {
             EV_ERROR << "无法加载停车场信息文件: " << parkingAreasFile << endl;
-            return;
-        }
-        
+        return;
+    }
+    
         // 查找所有parkingArea元素
         cXMLElementList parkingAreaNodes = root->getChildrenByTagName("parkingArea");
         EV_INFO << "找到 " << parkingAreaNodes.size() << " 个停车区域" << endl;
