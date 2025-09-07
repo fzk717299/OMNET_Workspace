@@ -92,6 +92,9 @@ protected:
 
     // 触发事故 (事故车自身使用)
     virtual void triggerAccident();
+    
+    // 手动确保socket绑定
+    virtual void ensureSocketBinding();
 
 public:
     AccidentCarApp();

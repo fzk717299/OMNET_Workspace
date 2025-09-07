@@ -14,6 +14,7 @@
 #include "veins/modules/mobility/traci/TraCIColor.h"
 
 #include <iostream> // 添加标准输出头文件
+#include "inet/transportlayer/contract/udp/UdpSocket.h" // 添加UdpSocket头文件
 
 using namespace inet::units::values;
 using namespace omnetpp;
@@ -48,14 +49,46 @@ AccidentCarApp::~AccidentCarApp()
 
 void AccidentCarApp::initialize(int stage)
 {
+    std::cout << "****** [DIRECT OUTPUT] AccidentCarApp::initialize - 开始 STAGE " << stage 
+              << " for " << getParentModule()->getFullName() << " ******" << std::endl;
+    
     UdpSink::initialize(stage);
     
+    std::cout << "****** [DIRECT OUTPUT] AccidentCarApp::initialize - UdpSink初始化完成 STAGE " << stage << " ******" << std::endl;
+    
     if (stage == INITSTAGE_LOCAL) {
+        // 检查并输出localPort参数
+        try {
+            int localPortValue = par("localPort");
+            std::cout << "****** [DIRECT OUTPUT] AccidentCarApp - localPort参数值: " << localPortValue << " ******" << std::endl;
+        } catch (const std::exception& e) {
+            std::cout << "****** [DIRECT OUTPUT] AccidentCarApp - 无法读取localPort参数: " << e.what() << " ******" << std::endl;
+        }
+        
         // 读取参数
         smoothDeceleration_ = par("smoothDeceleration").boolValue();
         responseTime_ = par("responseTime").doubleValue();
         isAccidentVehicle_ = par("isAccidentVehicle").boolValue();
         accidentTime_ = par("accidentTime");
+        
+        // 检查是否有其他应用也在监听同一端口
+        std::cout << "****** [DIRECT OUTPUT] AccidentCarApp - 检查父模块的应用配置 ******" << std::endl;
+        cModule* parentModule = getParentModule();
+        int numApps = parentModule->par("numApps").intValue();
+        std::cout << "****** [DIRECT OUTPUT] 父模块名称: " << parentModule->getFullName() 
+                  << ", 应用数量: " << numApps << " ******" << std::endl;
+        
+        // 列出所有应用模块
+        for (int i = 0; i < numApps; i++) {
+            cModule* appModule = parentModule->getSubmodule("app", i);
+            if (appModule) {
+                std::cout << "****** [DIRECT OUTPUT] 应用[" << i << "]: " 
+                          << appModule->getClassName() << " (" << appModule->getFullName() << ") ******" << std::endl;
+            }
+        }
+        
+        // 检查当前应用的索引
+        std::cout << "****** [DIRECT OUTPUT] 当前AccidentCarApp索引: " << getIndex() << " ******" << std::endl;
         
         // 添加直接的标准输出
         std::cout << "****** [DIRECT OUTPUT] AccidentCarApp::initialize STAGE " << stage 
@@ -90,6 +123,30 @@ void AccidentCarApp::initialize(int stage)
         // 添加直接的标准输出
         std::cout << "\n\n\n****** [DIRECT OUTPUT] AccidentCarApp::initialize STAGE " << stage 
                   << " for " << getParentModule()->getFullName() << " ******\n\n\n" << std::endl;
+        
+        // 检查socket绑定状态
+        std::cout << "****** [DIRECT OUTPUT] AccidentCarApp - 检查socket绑定状态 ******" << std::endl;
+        try {
+            // 尝试获取UDP socket信息
+            cGate* socketOut = gate("socketOut");
+            cGate* socketIn = gate("socketIn");
+            std::cout << "****** [DIRECT OUTPUT] Socket gates - Out: " << (socketOut ? "存在" : "不存在") 
+                      << ", In: " << (socketIn ? "存在" : "不存在") << " ******" << std::endl;
+                      
+            // 检查localPort参数是否正确传递到UdpSink
+            int portValue = par("localPort");
+            std::cout << "****** [DIRECT OUTPUT] 最终localPort值: " << portValue << " ******" << std::endl;
+        } catch (const std::exception& e) {
+            std::cout << "****** [DIRECT OUTPUT] Socket检查出错: " << e.what() << " ******" << std::endl;
+        }
+        
+        // 手动确保socket绑定（作为备用方案）
+        std::cout << "****** [DIRECT OUTPUT] AccidentCarApp - 尝试手动socket绑定 ******" << std::endl;
+        try {
+            ensureSocketBinding();
+        } catch (const std::exception& e) {
+            std::cout << "****** [DIRECT OUTPUT] 手动socket绑定失败: " << e.what() << " ******" << std::endl;
+        }
         
         // 调度事故计时器
         if (isAccidentVehicle_) {
@@ -384,6 +441,31 @@ std::string AccidentCarApp::getSumoId()
     }
     
     return veinsMobility->getExternalId();
+}
+
+void AccidentCarApp::ensureSocketBinding()
+{
+    std::cout << "****** [DIRECT OUTPUT] AccidentCarApp::ensureSocketBinding - 开始手动socket绑定 ******" << std::endl;
+    
+    try {
+        // 获取localPort参数
+        int localPort = par("localPort").intValue();
+        std::cout << "****** [DIRECT OUTPUT] 准备绑定到端口: " << localPort << " ******" << std::endl;
+        
+        // 创建UDP socket
+        UdpSocket socket;
+        socket.setOutputGate(gate("socketOut"));
+        socket.bind(localPort);
+        
+        std::cout << "****** [DIRECT OUTPUT] 手动socket绑定成功，端口: " << localPort << " ******" << std::endl;
+        
+    } catch (const std::exception& e) {
+        std::cout << "****** [DIRECT OUTPUT] 手动socket绑定出现异常: " << e.what() << " ******" << std::endl;
+        EV_ERROR << "Manual socket binding failed: " << e.what() << endl;
+        
+        // 如果手动绑定失败，尝试让UdpSink自己处理
+        std::cout << "****** [DIRECT OUTPUT] 回退到UdpSink默认处理 ******" << std::endl;
+    }
 }
 
 void AccidentCarApp::finish()
