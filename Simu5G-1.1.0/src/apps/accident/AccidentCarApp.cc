@@ -172,8 +172,16 @@ void AccidentCarApp::handleMessageWhenUp(cMessage *msg)
         }
     }
     else {
-        // UdpSink::handleMessageWhenUp 现在会调用 processPacket
-        UdpSink::handleMessageWhenUp(msg);
+        // 直接检查是否是数据包消息
+        if (auto packet = dynamic_cast<Packet*>(msg)) {
+            std::cout << "\n\n\n****** [DIRECT OUTPUT] AccidentCarApp::handleMessageWhenUp - 收到数据包: '" 
+                      << packet->getName() << "' 在车辆 " << getSumoId() << " ******\n\n\n" << std::endl;
+            // 直接调用我们的处理方法
+            processPacket(packet);
+        } else {
+            // 调用基类处理其他消息
+            UdpSink::handleMessageWhenUp(msg);
+        }
     }
 }
 
@@ -199,13 +207,19 @@ void AccidentCarApp::triggerAccident()
 
 void AccidentCarApp::processPacket(Packet *packet)
 {
-    // 只有当数据包名称包含"LaneChangeCommand"时才输出日志
+    // 无条件输出以确定方法是否被调用
+    std::cout << "\n\n\n****** [DIRECT OUTPUT] AccidentCarApp::processPacket 被调用！车辆 " << getSumoId() 
+              << " 收到数据包: '" << packet->getName() << "' ******\n\n\n" << std::endl;
+              
+    // 检查是否包含LaneChangeCommand
     if (strstr(packet->getName(), "LaneChangeCommand") != nullptr) {
-        std::cout << "\n\n\n****** [DIRECT OUTPUT] AccidentCarApp::processPacket - 车辆 " << getSumoId() 
-                  << " 收到数据包: " << packet->getName() << " ******\n\n\n" << std::endl;
+        std::cout << "****** [DIRECT OUTPUT] 数据包名称匹配 LaneChangeCommand！******" << std::endl;
+    } else {
+        std::cout << "****** [DIRECT OUTPUT] 数据包名称不匹配 LaneChangeCommand ******" << std::endl;
     }
     
-    UdpSink::processPacket(packet);
+    // 不调用基类方法，直接处理
+    // UdpSink::processPacket(packet);  // 注释掉，避免重复处理
     
     simtime_t delay = simTime() - packet->getCreationTime();
     emit(endToEndDelaySignal, delay);

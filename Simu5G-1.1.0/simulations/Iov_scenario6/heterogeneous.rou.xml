@@ -28,7 +28,7 @@
   <flow id="flow_low_2" type="car_cautious" begin="0" end="3600" number="30" route="4" color="0,1,0"/>
   
   <!-- 中密度区域 - 城市道路 -->
-  <flow id="flow_medium_1" type="car_normal" begin="9" end="3600" number="150" route="2" color="1,1,0"/>
+  <flow id="flow_medium_1" type="car_normal" begin="3" end="3600" number="150" route="2" color="1,1,0"/>
   <flow id="flow_medium_2" type="car_aggressive" begin="0" end="3600" number="100" route="3" color="1,0,0"/>
   <flow id="flow_medium_3" type="truck" begin="0" end="3600" number="20" route="4" color="0,0,1"/>
   
