@@ -12,6 +12,7 @@
   <route id="2" edges="1/2to1/1 1/1to1/0"/>
   <route id="3" edges="2/1to1/1 1/1to0/1"/>
   <route id="4" edges="0/1to1/1 1/1to2/1"/>
+  <route id="9" edges="1/2to1/1 1/1to0/1"/>
   
   <!-- 添加更多路线 -->
   <route id="5" edges="0/0to1/0 1/0to2/0 2/0to2/1 2/1to2/2"/>  <!-- 对角线路线 -->
@@ -28,7 +29,7 @@
   <flow id="flow_low_2" type="car_cautious" begin="0" end="3600" number="30" route="4" color="0,1,0"/>
   
   <!-- 中密度区域 - 城市道路 -->
-  <flow id="flow_medium_1" type="car_normal" begin="3" end="3600" number="150" route="2" color="1,1,0"/>
+  
   <flow id="flow_medium_2" type="car_aggressive" begin="0" end="3600" number="100" route="3" color="1,0,0"/>
   <flow id="flow_medium_3" type="truck" begin="0" end="3600" number="20" route="4" color="0,0,1"/>
   
@@ -38,12 +39,11 @@
   <flow id="flow_high_3" type="car_cautious" begin="0" end="3600" number="150" route="7" color="0,1,0"/>
   <flow id="flow_high_4" type="bus" begin="0" end="3600" number="30" route="8" color="1,0,1"/>
   
+  <flow id="flow_medium_1" type="car_normal" begin="11" end="3600" number="150" route="9" color="1,1,0"/>
+  
   <!-- 突发流量 - 模拟交通事故后的情况 -->
   <flow id="flow_burst_1" type="car_normal" begin="500" end="700" number="100" route="1" color="1,1,0"/>
   <flow id="flow_burst_2" type="car_aggressive" begin="500" end="700" number="60" route="4" color="1,0,0"/>
   
-  <!-- 高速移动车辆 - 测试快速切换 -->
-  <flow id="flow_fast_1" type="car_aggressive" begin="0" end="3600" number="50" route="5" color="1,0,0"/>
-  <flow id="flow_fast_2" type="car_aggressive" begin="0" end="3600" number="50" route="6" color="1,0,0"/>
 </routes>
  

@@ -36,8 +36,6 @@ AccidentRsuApp::AccidentRsuApp() :
     minStopTime_(3.0),
     checkTimer_(nullptr)
 {
-    // 添加直接的标准输出
-    std::cout << "\n\n\n****** [DIRECT OUTPUT] AccidentRsuApp constructor called ******\n\n\n" << std::endl;
 }
 
 AccidentRsuApp::~AccidentRsuApp()
@@ -64,17 +62,12 @@ void AccidentRsuApp::initialize(int stage)
         checkTimer_ = new cMessage("accidentCheckTimer");
     }
     else if (stage == INITSTAGE_APPLICATION_LAYER) {
-        // 添加直接的标准输出
-        std::cout << "\n\n\n****** [DIRECT OUTPUT] AccidentRsuApp::initialize STAGE " << stage 
-                  << " for " << getParentModule()->getFullName() << " ******\n\n\n" << std::endl;
         
         EV_INFO << "\n\n\n****** [RSU " << getParentModule()->getFullName() << "] Initialized ******\n\n\n" << endl;
         EV_INFO << "AccidentRsuApp初始化完成，监控车道数量: " << monitoredLanes_.size() 
                 << "，检查间隔: " << checkInterval_ << "s" << endl;
         
         // 启动定期检查
-        std::cout << "\n\n\n****** [DIRECT OUTPUT] AccidentRsuApp::initialize - 调度第一次检查，时间: " 
-                  << simTime() + 0.1 << " ******\n\n\n" << std::endl;
         scheduleAt(simTime() + 0.1, checkTimer_);  // 0.1秒后开始第一次检查
     }
 }
@@ -123,24 +116,19 @@ void AccidentRsuApp::checkVehicles()
 {
     // 获取TraCI接口
     if (!getTraCIInterface()) {
-        std::cout << "\n\n\n****** [DIRECT OUTPUT] AccidentRsuApp::checkVehicles - TraCI接口尚未可用，稍后重试 ******\n\n\n" << std::endl;
         EV_WARN << "TraCI接口尚未可用，稍后重试" << endl;
         return;
     }
-    
-    std::cout << "\n\n\n****** [DIRECT OUTPUT] AccidentRsuApp::checkVehicles - TraCI接口已获取 ******\n\n\n" << std::endl;
     
     try {
         // 获取所有管理的车辆
         std::map<std::string, cModule*> managedHosts = manager_->getManagedHosts();
         
         if (managedHosts.empty()) {
-            std::cout << "\n\n\n****** [DIRECT OUTPUT] AccidentRsuApp::checkVehicles - 当前没有车辆在仿真中 ******\n\n\n" << std::endl;
             EV_INFO << "当前没有车辆在仿真中" << endl;
             return;
         }
         
-        std::cout << "\n\n\n****** [DIRECT OUTPUT] AccidentRsuApp::checkVehicles - 当前仿真中有 " << managedHosts.size() << " 辆车 ******\n\n\n" << std::endl;
         EV_INFO << "当前仿真中有 " << managedHosts.size() << " 辆车" << endl;
         
         // 遍历所有车辆
@@ -149,18 +137,15 @@ void AccidentRsuApp::checkVehicles()
             const std::string& sumoId = pair.first;
             cModule* carModule = pair.second;
             
-            std::cout << "****** [DIRECT OUTPUT] 处理车辆 " << sumoId << " (" << processedVehicles + 1 << "/" << managedHosts.size() << ") ******" << std::endl;
             processedVehicles++;
             
             try {
                 // 正确的获取位置方式：从车辆的mobility模块获取
                 if (!carModule) {
-                    std::cout << "****** [DIRECT OUTPUT] 车辆模块为空，跳过 ******" << std::endl;
                     continue;
                 }
                 IMobility* mobility = check_and_cast_nullable<IMobility*>(carModule->getSubmodule("mobility"));
                 if (!mobility) {
-                    std::cout << "****** [DIRECT OUTPUT] 车辆 " << sumoId << " 的mobility模块为空，跳过 ******" << std::endl;
                     continue;
                 }
                 
@@ -174,8 +159,6 @@ void AccidentRsuApp::checkVehicles()
                 std::string laneId = vehicle.getLaneId();
                 double speed = vehicle.getSpeed();  // m/s
                 
-                std::cout << "****** [DIRECT OUTPUT] 车辆 " << sumoId << " 在车道 " << laneId << "，速度 " << speed << " m/s ******" << std::endl;
-                
                 // 检查车辆是否在监控的车道上
                 bool onMonitoredLane = false;
                 for (const auto& lane : monitoredLanes_) {
@@ -186,13 +169,11 @@ void AccidentRsuApp::checkVehicles()
                 }
                 
                 if (!onMonitoredLane) {
-                    std::cout << "****** [DIRECT OUTPUT] 车辆 " << sumoId << " 不在监控车道上，跳过 ******" << std::endl;
                     continue;  // 不在监控车道上，跳过
                 }
                 
                 // 检查车辆是否停止
                 if (speed < stoppedSpeedThreshold_) {
-                    std::cout << "****** [DIRECT OUTPUT] 车辆 " << sumoId << " 速度低于阈值，可能停止 ******" << std::endl;
                     // 记录停止的车辆
                     auto it = stoppedVehicles_.find(sumoId);
                     if (it == stoppedVehicles_.end()) {
@@ -212,7 +193,7 @@ void AccidentRsuApp::checkVehicles()
                     else if (!it->second.alarmSent && 
                              simTime() - it->second.firstDetectedTime >= minStopTime_) {
                         // 车辆已停止足够长时间，处理事故
-                        std::cout << "****** [DIRECT OUTPUT] 车辆 " << sumoId << " 已停止足够长时间，处理事故 ******" << std::endl;
+                        std::cout << "****** [DIRECT OUTPUT] 车辆 " << sumoId << " 已长时间停止，处理事故 ******" << std::endl;
                         processStoppedVehicle(sumoId, it->second.laneId, it->second.posX, it->second.posY);
                         it->second.alarmSent = true;
                     }
@@ -228,17 +209,14 @@ void AccidentRsuApp::checkVehicles()
                 }
             }
             catch (const std::exception& e) {
-                std::cout << "****** [DIRECT OUTPUT] 处理车辆 " << sumoId << " 时出错: " << e.what() << " ******" << std::endl;
                 EV_WARN << "处理车辆 " << sumoId << " 时出错: " << e.what() << endl;
             }
         }
         
-        std::cout << "****** [DIRECT OUTPUT] 已处理所有车辆，调度下一次检查，时间: " << simTime() + checkInterval_ << " ******" << std::endl;
         // 调度下一次检查
         scheduleAt(simTime() + checkInterval_, checkTimer_);
     }
     catch (const std::exception& e) {
-        std::cout << "****** [DIRECT OUTPUT] 检查车辆时出错: " << e.what() << " ******" << std::endl;
         EV_ERROR << "检查车辆时出错: " << e.what() << endl;
         // 即使出错也要调度下一次检查，避免仿真卡住
         scheduleAt(simTime() + checkInterval_, checkTimer_);
@@ -248,48 +226,9 @@ void AccidentRsuApp::checkVehicles()
 // 添加缺失的函数定义
 std::string AccidentRsuApp::getTargetLane(const std::string& originalLane)
 {
-    EV_INFO << "****** [RSU] 为原始车道 " << originalLane << " 寻找避让目标车道 ******" << endl;
-    
-    // 解析车道ID格式，通常是"edgeID_laneIndex"
-    size_t pos = originalLane.find_last_of('_');
-    if (pos == std::string::npos) {
-        EV_ERROR << "****** [RSU] 车道ID格式错误: " << originalLane << " ******" << endl;
-        return "";
-    }
-    
-    std::string edgeId = originalLane.substr(0, pos);
-    int laneIndex = std::stoi(originalLane.substr(pos+1));
-    
-    EV_INFO << "****** [RSU] 解析车道: 边缘=" << edgeId << ", 车道索引=" << laneIndex << " ******" << endl;
-    
-    // 获取道路总车道数，尝试使用相邻车道
-    int totalLanes = -1;
-    try {
-        // 这是一个假设，实际实现可能需要根据TraCI的实际API调整
-        if (traci_) {
-            // 注意：这里假设道路有多个车道
-            // 在真实情况下，应该从SUMO/TraCI中获取道路的车道数量
-            totalLanes = 2;  // 假设至少有2个车道
-            EV_INFO << "****** [RSU] 边缘 " << edgeId << " 估计有 " << totalLanes << " 条车道 ******" << endl;
-        }
-    } catch (...) {
-        EV_WARN << "****** [RSU] 无法获取边缘 " << edgeId << " 的车道数量，假设为2 ******" << endl;
-        totalLanes = 2;  // 假设默认有2个车道
-    }
-    
-    // 计算目标车道索引 - 如果在车道0，移动到车道1；如果在其他车道，移动到车道0
-    int targetLaneIndex = (laneIndex == 0) ? 1 : 0;
-    if (targetLaneIndex >= totalLanes) {
-        // 安全检查
-        EV_WARN << "****** [RSU] 计算的目标车道索引 " << targetLaneIndex << " 超出了假设的车道数量 " << totalLanes << " ******" << endl;
-        targetLaneIndex = laneIndex > 0 ? laneIndex - 1 : 0;
-        EV_WARN << "****** [RSU] 调整目标车道索引为 " << targetLaneIndex << " ******" << endl;
-    }
-    
-    // 构建目标车道ID
-    std::string targetLane = edgeId + "_" + std::to_string(targetLaneIndex);
-    EV_INFO << "****** [RSU] 最终选择的避让目标车道: " << targetLane << " ******" << endl;
-    
+    // 直接返回固定目标车道
+    std::string targetLane = "1/1to0/1";
+    EV_INFO << "****** [RSU] 为原始车道 " << originalLane << " 设置固定目标车道: " << targetLane << " ******" << endl;
     return targetLane;
 }
 

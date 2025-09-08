@@ -1,0 +1,76 @@
+void AccidentServerApp::processLaneChangeCommand(const AccidentPacket* data)
+{
+    std::cout << "\n\n\n****** [DIRECT OUTPUT] AccidentServerApp::processLaneChangeCommand - 开始处理 ******\n\n\n" << std::endl;
+    
+    if (!getTraCIInterface()) {
+        std::cout << "****** [DIRECT OUTPUT] AccidentServerApp::processLaneChangeCommand - TraCI接口不可用 ******" << std::endl;
+        EV_ERROR << "****** [服务器] TraCI接口不可用，无法处理变道命令 ******" << endl;
+        return;
+    }
+
+    std::string originalLane = data->getOriginalLaneId();
+    std::string targetLane = data->getTargetLaneId();
+    veins::Coord accidentPos(data->getAccidentPosX(), data->getAccidentPosY());
+
+    std::cout << "****** [DIRECT OUTPUT] AccidentServerApp::processLaneChangeCommand - 原始车道: " << originalLane 
+              << ", 目标车道: " << targetLane 
+              << ", 事故位置: (" << accidentPos.x << ", " << accidentPos.y << ") ******" << std::endl;
+    
+    EV_INFO << "\n==================================================================" << endl;
+    EV_INFO << "****** [服务器] 接收到变道命令！原始车道: " << originalLane << " ******" << endl;
+    EV_INFO << "****** 事故位置: (" << accidentPos.x << ", " << accidentPos.y << ") ******" << endl;
+    EV_INFO << "****** 目标车道: " << targetLane << " ******" << endl;
+    EV_INFO << "==================================================================" << endl;
+
+    try {
+        // --- 按route转发数据包给route 2和9的车辆 ---
+        std::cout << "****** [DIRECT OUTPUT] [通信轨道] 开始查找route '2'和route '9'上的车辆进行数据包转发 ******" << std::endl;
+        EV_INFO << "****** [服务器][通信轨道] 开始查找route '2'和route '9'上的车辆进行数据包转发 ******" << endl;
+
+        std::vector<std::string> targetRouteIds = {"2", "9"};
+        auto managedHosts = manager_->getManagedHosts();
+        int forwardCount = 0;
+
+        for (const auto& pair : managedHosts) {
+            const std::string& vehicleId = pair.first;
+            cModule* targetModule = pair.second;
+
+            try {
+                std::string currentRouteId = traci_->vehicle(vehicleId).getRouteId();
+                
+                // 检查车辆是否在目标路线列表中
+                bool shouldSendPacket = false;
+                for (const std::string& targetRoute : targetRouteIds) {
+                    if (currentRouteId == targetRoute) {
+                        shouldSendPacket = true;
+                        break;
+                    }
+                }
+                
+                if (shouldSendPacket) {
+                    forwardCount++;
+                    if (targetModule) {
+                        std::cout << "****** [DIRECT OUTPUT] [通信轨道] 向车辆 " << vehicleId 
+                                  << " (route " << currentRouteId << ") 转发数据包 ******" << std::endl;
+                        EV_INFO << "****** [服务器][通信轨道] 向车辆 " << vehicleId 
+                                << " (route " << currentRouteId << ") 转发数据包 ******" << endl;
+                        
+                        Packet* fwdPacket = createForwardedLaneChangePacket(data);
+                        L3Address destAddr = L3AddressResolver().resolve(targetModule->getFullName());
+                        socket.sendTo(fwdPacket, destAddr, destPort);
+                        emit(laneChangeCommandForwardedSignal, 1);
+                    }
+                }
+            }
+            catch (const std::exception& e) {
+                EV_WARN << "处理车辆 " << vehicleId << " 时出错 (通信轨道): " << e.what() << endl;
+            }
+        }
+        std::cout << "****** [DIRECT OUTPUT] 已向route '2'和route '9'上的 " << forwardCount << " 辆车转发了数据包 ******" << std::endl;
+        EV_INFO << "****** [服务器] 已向route '2'和route '9'上的 " << forwardCount << " 辆车转发了数据包 ******" << endl;
+    }
+    catch (const std::exception& e) {
+        std::cout << "****** [DIRECT OUTPUT] 处理变道命令时出错: " << e.what() << " ******" << std::endl;
+        EV_ERROR << "****** [服务器] 处理变道命令时出错: " << e.what() << " ******" << endl;
+    }
+}

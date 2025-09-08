@@ -32,8 +32,6 @@ AccidentServerApp::AccidentServerApp() :
     processedMsgs(0),
     processingDelay(0.05)
 {
-    // 添加直接的标准输出
-    std::cout << "\n\n\n****** [DIRECT OUTPUT] AccidentServerApp constructor called ******\n\n\n" << std::endl;
 }
 
 AccidentServerApp::~AccidentServerApp()
@@ -53,9 +51,6 @@ void AccidentServerApp::initialize(int stage)
         processedMsgs = 0;
     }
     else if (stage == INITSTAGE_APPLICATION_LAYER) {
-        // 添加直接的标准输出
-        std::cout << "\n\n\n****** [DIRECT OUTPUT] AccidentServerApp::initialize STAGE " << stage 
-                  << " for " << getParentModule()->getFullName() << " ******\n\n\n" << std::endl;
         
         EV_INFO << "\n\n\n****** [SERVER " << getParentModule()->getFullName() << "] Initialized ******\n\n\n" << endl;
         EV_INFO << "AccidentServerApp initialized, processingDelay: " << processingDelay << "s" << endl;
@@ -65,13 +60,6 @@ void AccidentServerApp::initialize(int stage)
 
 void AccidentServerApp::processPacket(Packet *pk)
 {
-    // 只有当数据包名称包含"LaneChangeCommand"时才输出日志
-    // 这样可以过滤掉普通的UdpBasicAppData数据包
-    if (strstr(pk->getName(), "LaneChangeCommand") != nullptr) {
-        std::cout << "\n\n\n****** [DIRECT OUTPUT] AccidentServerApp::processPacket - 收到数据包: " 
-                  << pk->getName() << " ******\n\n\n" << std::endl;
-    }
-    
     // 调用父类方法处理基本统计
     UdpBasicApp::processPacket(pk);
     
@@ -83,39 +71,21 @@ void AccidentServerApp::processPacket(Packet *pk)
             // 尝试将chunk转换为AccidentPacket
             const auto accidentPkt = dynamicPtrCast<const AccidentPacket>(chunk);
             if (accidentPkt) {
-                std::cout << "****** [DIRECT OUTPUT] AccidentServerApp收到AccidentPacket，类型: " 
-                          << accidentPkt->getMsgType() << " ******" << std::endl;
                 EV_INFO << "Server received AccidentPacket, type: " << accidentPkt->getMsgType() << endl;
                 
                 // 仅处理变道命令
                 if (accidentPkt->getMsgType() == ACC_LANE_CHANGE_CMD) {
-                    std::cout << "****** [DIRECT OUTPUT] AccidentServerApp处理变道命令 ******" << std::endl;
                     processLaneChangeCommand(accidentPkt.get());
                 }
                 else {
-                    std::cout << "****** [DIRECT OUTPUT] AccidentServerApp收到未知或不支持的包类型: " 
-                              << accidentPkt->getMsgType() << " ******" << std::endl;
                     EV_WARN << "Received unknown or unsupported AccidentPacket type: " << accidentPkt->getMsgType() << endl;
                 }
                 
                 processedMsgs++;
             }
-            // 不再输出无法转换的日志，只在EV_DEBUG级别记录
-            else if (strstr(pk->getName(), "LaneChangeCommand") != nullptr) {
-                // 只有当数据包名称包含"LaneChangeCommand"时才输出无法转换的警告
-                std::cout << "****** [DIRECT OUTPUT] AccidentServerApp无法将数据包转换为AccidentPacket ******" << std::endl;
-            }
-        }
-        else if (strstr(pk->getName(), "LaneChangeCommand") != nullptr) {
-            // 只有当数据包名称包含"LaneChangeCommand"时才输出没有数据块的警告
-            std::cout << "****** [DIRECT OUTPUT] AccidentServerApp收到的数据包没有数据块 ******" << std::endl;
         }
     }
     catch (const std::exception& e) {
-        if (strstr(pk->getName(), "LaneChangeCommand") != nullptr) {
-            // 只有当数据包名称包含"LaneChangeCommand"时才输出错误日志
-            std::cout << "****** [DIRECT OUTPUT] AccidentServerApp处理数据包时出错: " << e.what() << " ******" << std::endl;
-        }
         EV_WARN << "Error processing packet: " << e.what() << endl;
     }
 }
@@ -204,49 +174,48 @@ void AccidentServerApp::processLaneChangeCommand(const AccidentPacket* data)
     EV_INFO << "==================================================================" << endl;
 
     try {
-        auto vehiclesOnLane = getVehiclesOnLane(originalLane);
-        double accidentLanePos = data->getAccidentPosX(); // 简化，直接使用X坐标作为车道位置
+        // --- 按route转发数据包给route 2和9的车辆 ---
+        EV_INFO << "****** [服务器][通信轨道] 开始查找route '2'和'9'上的车辆进行数据包转发 ******" << endl;
 
-        if (vehiclesOnLane.empty()) {
-            std::cout << "****** [DIRECT OUTPUT] AccidentServerApp::processLaneChangeCommand - 车道 " << originalLane << " 上没有车辆 ******" << std::endl;
-            EV_INFO << "****** [服务器] 车道 " << originalLane << " 上没有车辆 ******" << endl;
-            return;
-        }
-        
-        std::cout << "****** [DIRECT OUTPUT] AccidentServerApp::processLaneChangeCommand - 找到 " << vehiclesOnLane.size() 
-                  << " 辆车在车道 " << originalLane << " 上 ******" << std::endl;
-        
-        EV_INFO << "****** [服务器] 找到 " << vehiclesOnLane.size() << " 辆车在车道 " << originalLane << " 上: ******" << endl;
-        for (const std::string& vid : vehiclesOnLane) {
-            std::cout << "****** [DIRECT OUTPUT] 车辆ID: " << vid << " ******" << std::endl;
-            EV_INFO << "****** - 车辆ID: " << vid << " ******" << endl;
-        }
-
-        // 查找在事故点前方的车辆
+        std::vector<std::string> targetRouteIds = {"2", "9"};
+        auto managedHosts = manager_->getManagedHosts();
         int forwardCount = 0;
-        for (const std::string& vehicleId : vehiclesOnLane) {
+
+        for (const auto& pair : managedHosts) {
+            const std::string& vehicleId = pair.first;
+            cModule* targetModule = pair.second;
             try {
-                double vehicleLanePos = traci_->vehicle(vehicleId).getLanePosition();
-                std::cout << "****** [DIRECT OUTPUT] 车辆 " << vehicleId << " 位置: " << vehicleLanePos 
-                          << ", 事故位置: " << accidentLanePos << " ******" << std::endl;
+                std::string currentRouteId = traci_->vehicle(vehicleId).getRouteId();
+                // 检查车辆是否在目标路线列表中
+                bool shouldSendPacket = false;
+                for (const std::string& targetRoute : targetRouteIds) {
+                    if (currentRouteId == targetRoute) {
+                        shouldSendPacket = true;
+                        break;
+                    }
+                }
                 
-                EV_INFO << "****** 车辆 " << vehicleId << " 位置: " << vehicleLanePos << ", 事故位置: " << accidentLanePos << " ******" << endl;
-                
-                if (vehicleLanePos < accidentLanePos) {
+                if (shouldSendPacket) {
+                    // 检查是否是事故车辆，如果是则跳过
+                    if (vehicleId == "0") {  // car[0]是事故车辆
+                        std::cout << "****** [DIRECT OUTPUT] AccidentServerApp - 车辆 " << vehicleId << " 是事故车辆，不发送变道命令 ******" << std::endl;
+                        EV_INFO << "****** [服务器] 车辆 " << vehicleId << " 是事故车辆，不发送变道命令 ******" << endl;
+                        continue;
+                    }
+                    
                     forwardCount++;
-                    cModule* targetModule = mapSumoIdToModule(vehicleId);
                     if (targetModule) {
-                        std::cout << "****** [DIRECT OUTPUT] 向车辆 " << vehicleId << " (模块: " << targetModule->getFullName() 
-                                  << ") 转发变道命令 ******" << std::endl;
-                        
-                        EV_INFO << "****** [服务器] 向车辆 " << vehicleId << " 转发变道命令 ******" << endl;
+                        std::cout << "****** [DIRECT OUTPUT] [通信轨道] 向车辆 " << vehicleId 
+                                  << " 转发数据包 ******" << std::endl;
+                        EV_INFO << "****** [服务器][通信轨道] 向车辆 " << vehicleId 
+                                << " 转发数据包 ******" << endl;
                         Packet* fwdPacket = createForwardedLaneChangePacket(data);
                         
                         // 确保目标地址解析正确
                         std::string fullModuleName = targetModule->getFullName();
                         L3Address destAddr;
                         try {
-                            destAddr = L3AddressResolver().resolve(fullModuleName.c_str());  // 使用c_str()而不是std::string
+                            destAddr = L3AddressResolver().resolve(fullModuleName.c_str());
                             std::cout << "****** [DIRECT OUTPUT] 成功解析 " << fullModuleName << " 的地址: " << destAddr.str() << " ******" << std::endl;
                         } catch (const std::exception& e) {
                             std::cout << "****** [DIRECT OUTPUT] 解析 " << fullModuleName << " 的地址时出错: " << e.what() << " ******" << std::endl;
@@ -256,8 +225,8 @@ void AccidentServerApp::processLaneChangeCommand(const AccidentPacket* data)
                         
                         try {
                             socket.sendTo(fwdPacket, destAddr, destPort);
-                            std::cout << "****** [DIRECT OUTPUT] 变道命令已发送到 " << fullModuleName << " (地址: " << destAddr.str() << ") ******" << std::endl;
                             emit(laneChangeCommandForwardedSignal, 1);
+                            std::cout << "****** [DIRECT OUTPUT] 变道命令已发送到 " << fullModuleName << " (地址: " << destAddr.str() << ") ******" << std::endl;
                             EV_INFO << "****** [服务器] 变道命令已发送到 " << targetModule->getFullName() << " (地址: " << destAddr << ") ******" << endl;
                         } catch (const std::exception& e) {
                             std::cout << "****** [DIRECT OUTPUT] 发送变道命令到 " << fullModuleName << " 时出错: " << e.what() << " ******" << std::endl;
@@ -267,12 +236,8 @@ void AccidentServerApp::processLaneChangeCommand(const AccidentPacket* data)
                         std::cout << "****** [DIRECT OUTPUT] 无法找到车辆 " << vehicleId << " 对应的模块 ******" << std::endl;
                         EV_ERROR << "****** [服务器] 无法找到车辆 " << vehicleId << " 对应的模块 ******" << endl;
                     }
-                } else {
-                    std::cout << "****** [DIRECT OUTPUT] 车辆 " << vehicleId << " 在事故点后方，不需要变道 ******" << std::endl;
-                    EV_INFO << "****** [服务器] 车辆 " << vehicleId << " 在事故点后方，不需要变道 ******" << endl;
                 }
             } catch (const std::exception& e) {
-                std::cout << "****** [DIRECT OUTPUT] 获取车辆 " << vehicleId << " 位置时出错: " << e.what() << " ******" << std::endl;
                 EV_ERROR << "获取车辆 " << vehicleId << " 位置时出错: " << e.what() << endl;
             }
         }
@@ -286,7 +251,6 @@ void AccidentServerApp::processLaneChangeCommand(const AccidentPacket* data)
         }
     }
     catch (const std::exception& e) {
-        std::cout << "****** [DIRECT OUTPUT] 处理变道命令时出错: " << e.what() << " ******" << std::endl;
         EV_ERROR << "****** [服务器] 处理变道命令时出错: " << e.what() << " ******" << endl;
     }
 }
