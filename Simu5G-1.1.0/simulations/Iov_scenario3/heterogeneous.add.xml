@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<additional xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/additional_file.xsd">
+    <vType id="car_normal" accel="2.6" decel="4.5" sigma="0.5" length="4.5" minGap="2.5" maxSpeed="30" guiShape="passenger"/>
+    <vType id="leader" accel="2.6" decel="4.5" sigma="0.5" length="4.5" minGap="2.5" maxSpeed="30" guiShape="passenger" color="1,0,0"/>
+    <vType id="follower" accel="2.6" decel="4.5" sigma="0.5" length="4.5" minGap="2.5" maxSpeed="30" guiShape="passenger" color="0,1,0"/>
+    
+    <!-- 车辆跟随参数 -->
+    <vTypeDistribution id="follow_vtypes">
+        <vType id="leader" accel="2.6" decel="4.5" sigma="0.5" length="4.5" minGap="2.5" maxSpeed="30" guiShape="passenger" color="1,0,0"/>
+        <vType id="follower" accel="2.6" decel="4.5" sigma="0.5" length="4.5" minGap="2.5" maxSpeed="30" guiShape="passenger" color="0,1,0"/>
+    </vTypeDistribution>
+
+    <!-- 车辆跟随行为 -->
+    <vType id="leader" accel="2.6" decel="4.5" sigma="0.5" length="4.5" minGap="2.5" maxSpeed="30" guiShape="passenger" color="1,0,0">
+        <param key="has.rerouting.device" value="false"/>
+    </vType>
+    <vType id="follower" accel="2.6" decel="4.5" sigma="0.5" length="4.5" minGap="2.5" maxSpeed="30" guiShape="passenger" color="0,1,0">
+        <param key="has.rerouting.device" value="false"/>
+        <carFollowing-IDM tau="1.0" delta="4" stepping="0.25"/>
+    </vType>
+    
+    <!-- 车辆跟随路线 -->
+    <route id="follow_route" edges="1/2to1/1 1/1to1/0 1/0to0/0"/>
+    
+    <!-- 领车 follow_1 -->
+    <vehicle id="follow_1" type="leader" route="follow_route" depart="1" departSpeed="15">
+        <param key="has.rerouting.device" value="false"/>
+    </vehicle>
+    
+    <!-- 跟随车 follow_2 -->
+    <vehicle id="follow_2" type="follower" route="follow_route" depart="2" departSpeed="15">
+        <param key="has.rerouting.device" value="false"/>
+    </vehicle>
+</additional>

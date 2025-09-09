@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <routes>
+        <!-- RSU路由配置 -->
+        <route destination="10.0.1.1" netmask="255.255.255.0" interface="cellular" />
+        <route destination="10.0.2.1" netmask="255.255.255.0" interface="cellular" />
+        
+        <!-- Car路由配置 -->
+        <route destination="10.0.0.1" netmask="255.255.255.0" interface="cellular" />
+        
+        <!-- 多播路由 -->
+        <route destination="224.0.0.0" netmask="240.0.0.0" interface="cellular" />
+    </routes>
+</configuration>
