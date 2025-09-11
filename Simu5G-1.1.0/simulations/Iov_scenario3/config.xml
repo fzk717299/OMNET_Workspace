@@ -1,14 +1,20 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<configuration>
-    <routes>
-        <!-- RSU路由配置 -->
-        <route destination="10.0.1.1" netmask="255.255.255.0" interface="cellular" />
-        <route destination="10.0.2.1" netmask="255.255.255.0" interface="cellular" />
-        
-        <!-- Car路由配置 -->
-        <route destination="10.0.0.1" netmask="255.255.255.0" interface="cellular" />
-        
-        <!-- 多播路由 -->
-        <route destination="224.0.0.0" netmask="240.0.0.0" interface="cellular" />
-    </routes>
-</configuration>
+<config>
+    <!-- Allocate large address blocks for mobile UE wireless interfaces -->
+    <interface hosts="car*" names="cellular" address="10.x.x.x" netmask="255.0.0.0"/>
+    <interface hosts="eNodeB*" names="cellular" address="10.x.x.x" netmask="255.0.0.0"/>
+    <interface hosts="rsu" names="cellular" address="10.x.x.x" netmask="255.0.0.0"/>
+    
+    <!-- Allocate standard address segments for all other wired interfaces -->
+    <interface hosts="**" address="192.168.x.x" netmask="255.255.255.0"/>
+    
+    <!-- Multicast routing configuration -->
+    <multicast-group hosts="car*" address="224.0.0.10"/>
+    <multicast-group hosts="rsu" address="224.0.0.10"/>
+    <multicast-group hosts="server" address="224.0.0.10"/>
+
+    <!-- Static routes to reach UE (10.0.0.0/8) via PGW, and default routes -->
+    <route hosts="router" destination="10.0.0.0" netmask="255.0.0.0" gateway="pgw"/>
+    <route hosts="server" destination="0.0.0.0" netmask="0.0.0.0" gateway="router"/>
+    <!-- RSU uses cellular network, no direct route to router needed -->
+</config>

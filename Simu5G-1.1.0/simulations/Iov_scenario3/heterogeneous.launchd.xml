@@ -1,8 +1,7 @@
-<?xml version="1.0"?>
-<!-- debug config -->
 <launch>
-    <copy file="heterogeneous.rou.xml" />
-    <copy file="heterogeneous_upgraded.net.xml" type="net" />
-    <copy file="heterogeneous.sumocfg" />
-    <copy file="gui-settings.xml" />
+  <copy file="heterogeneous_upgraded.net.xml"/>
+  <copy file="heterogeneous.rou.xml"/>
+  <copy file="heterogeneous.add.xml"/>
+  <copy file="heterogeneous.sumocfg" type="config"/>
+  <copy file="gui-settings.xml"/>
 </launch>

@@ -13,21 +13,16 @@
 -->
 
 <routes xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/routes_file.xsd">
-    <!-- 定义车辆类型 -->
-    <vType id="car_normal" accel="2.6" decel="4.5" sigma="0.5" length="4.5" minGap="2.5" maxSpeed="30" guiShape="passenger"/>
-    <vType id="leader" accel="2.6" decel="4.5" sigma="0.5" length="4.5" minGap="2.5" maxSpeed="30" guiShape="passenger" color="1,0,0"/>
-    <vType id="follower" accel="2.6" decel="4.5" sigma="0.5" length="4.5" minGap="2.5" maxSpeed="30" guiShape="passenger" color="0,1,0"/>
-
-    <!-- 定义路由 - 简单的直线路由用于跟随测试 -->
+    <!-- Define route only; vehicle types are in additional file -->
     <route id="follow_route" edges="1/2to1/1 1/1to1/0 1/0to0/0"/>
 
-    <!-- 领车 follow_1 -->
-    <vehicle id="follow_1" type="leader" route="follow_route" depart="1" departSpeed="15">
+    <!-- Leader vehicle follow_1 -->
+    <vehicle id="follow_1" type="leader" route="follow_route" depart="1" departSpeed="5">
         <param key="has.rerouting.device" value="false"/>
     </vehicle>
 
-    <!-- 跟随车 follow_2，稍后出发，在领车后面 -->
-    <vehicle id="follow_2" type="follower" route="follow_route" depart="2" departSpeed="15">
+    <!-- Follower vehicle follow_2 -->
+    <vehicle id="follow_2" type="follower" route="follow_route" depart="2" departSpeed="10">
         <param key="has.rerouting.device" value="false"/>
     </vehicle>
 

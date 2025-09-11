@@ -30,7 +30,7 @@
     </pedestrian>
 
     <netedit>
-        <additional-files value="D:\chelucloud\workspace\Simu5G-1.1.0\simulations\Iov_new\heterogeneous.add.xml"/>
+        <additional-files value="heterogeneous.add.xml"/>
     </netedit>
 
     <report>
