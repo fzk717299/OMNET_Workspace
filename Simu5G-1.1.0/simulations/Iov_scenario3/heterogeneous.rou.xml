@@ -6,24 +6,75 @@
         <net-file value="heterogeneous_upgraded.net.xml"/>
         <route-files value="heterogeneous.trips.xml"/>
     </input>
-    <output>
+    <o>
         <output-file value="heterogeneous.rou.xml"/>
-    </output>
+    </o>
 </configuration>
 -->
 
 <routes xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/routes_file.xsd">
-    <!-- Define route only; vehicle types are in additional file -->
+    <!-- 原始路线定义 - 保持不变 -->
     <route id="follow_route" edges="1/2to1/1 1/1to1/0 1/0to0/0"/>
+    
+    <!-- 新增有效路线 - 每条都是3段连续边 -->
+    <route id="west_to_east" edges="0/1to1/1 1/1to2/1"/>
+    <route id="east_to_west" edges="2/1to1/1 1/1to0/1"/>
+    <route id="north_to_south" edges="1/2to1/1 1/1to1/0"/>
+    <route id="south_to_north" edges="1/0to1/1 1/1to1/2"/>
+    <route id="clockwise_loop" edges="0/0to1/0 1/0to1/1 1/1to0/1 0/1to0/0"/>
+    <route id="counterclockwise_loop" edges="0/0to0/1 0/1to1/1 1/1to1/0 1/0to0/0"/>
+    <route id="diagonal_ne" edges="0/0to1/0 1/0to1/1 1/1to2/1 2/1to2/2"/>
+    <route id="diagonal_sw" edges="2/2to2/1 2/1to1/1 1/1to1/0 1/0to0/0"/>
 
-    <!-- Leader vehicle follow_1 -->
+    <!-- 原始车辆定义 - 保持不变 -->
     <vehicle id="follow_1" type="leader" route="follow_route" depart="1" departSpeed="5">
         <param key="has.rerouting.device" value="false"/>
     </vehicle>
 
-    <!-- Follower vehicle follow_2 -->
     <vehicle id="follow_2" type="follower" route="follow_route" depart="2" departSpeed="10">
         <param key="has.rerouting.device" value="false"/>
     </vehicle>
-
+    
+    <!-- 新增：测试车辆 - 使用新的有效路线 -->
+    <vehicle id="car_west_east_1" type="car_normal" route="west_to_east" depart="0" color="0.7,0.7,1">
+        <param key="has.rerouting.device" value="false"/>
+    </vehicle>
+    
+    <vehicle id="car_east_west_1" type="car_normal" route="east_to_west" depart="0" color="1,0.5,0.5">
+        <param key="has.rerouting.device" value="false"/>
+    </vehicle>
+    
+    <vehicle id="car_north_south_1" type="car_normal" route="north_to_south" depart="0" color="0.5,0.5,1">
+        <param key="has.rerouting.device" value="false"/>
+    </vehicle>
+    
+    <vehicle id="car_south_north_1" type="car_normal" route="south_to_north" depart="0" color="0.5,1,0.5">
+        <param key="has.rerouting.device" value="false"/>
+    </vehicle>
+    
+    <vehicle id="car_clockwise_1" type="car_normal" route="clockwise_loop" depart="0" color="1,0.5,1">
+        <param key="has.rerouting.device" value="false"/>
+    </vehicle>
+    
+    <vehicle id="car_counterclockwise_1" type="car_normal" route="counterclockwise_loop" depart="3" color="1,1,0.5">
+        <param key="has.rerouting.device" value="false"/>
+    </vehicle>
+    
+    <vehicle id="car_diagonal_ne_1" type="car_normal" route="diagonal_ne" depart="2" color="0.8,0.2,0.2">
+        <param key="has.rerouting.device" value="false"/>
+    </vehicle>
+    
+    <vehicle id="car_diagonal_sw_1" type="car_normal" route="diagonal_sw" depart="2" color="0.2,0.2,0.8">
+        <param key="has.rerouting.device" value="false"/>
+    </vehicle>
+    
+    <!-- 新增：车流 - 使用有效路线，数量少，间隔大 -->
+    <flow id="flow_west_east" type="car_normal" begin="5" end="65" number="3" route="west_to_east" color="1,0.8,0.2"/>
+    <flow id="flow_east_west" type="car_normal" begin="10" end="65" number="3" route="east_to_west" color="0.2,0.8,1"/>
+    <flow id="flow_north_south" type="car_normal" begin="15" end="65" number="3" route="north_to_south" color="0.8,0.2,0.8"/>
+    <flow id="flow_south_north" type="car_normal" begin="20" end="65" number="3" route="south_to_north" color="0.2,0.8,0.2"/>
+    
+    <!-- 新增：周期性车流 - 少量并限制在仿真时间范围内 -->
+    <flow id="flow_diagonal_ne" type="car_normal" begin="0" end="65" period="30" route="diagonal_ne" departLane="0" color="0,0,0.8"/>
+    <flow id="flow_diagonal_sw" type="car_normal" begin="15" end="65" period="30" route="diagonal_sw" departLane="0" color="0.8,0,0"/>
 </routes>

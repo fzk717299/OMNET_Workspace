@@ -5,6 +5,7 @@
 #include "FollowCarApp.h"
 #include "inet/common/ModuleAccess.h"
 #include "inet/common/packet/Packet.h"
+#include "inet/common/TimeTag_m.h"
 #include "inet/networklayer/common/L3AddressTag_m.h"
 #include "veins/modules/mobility/traci/TraCIScenarioManager.h"
 
@@ -22,6 +23,10 @@ void FollowCarApp::initialize(int stage)
         maxSpeed_ = par("maxSpeed");
         // Initialize mobility pointer
         mobility_ = inet::getModuleFromPar<veins::VeinsInetMobility>(par("mobilityModule"), this);
+        
+        // Register statistics signals
+        endToEndDelaySignal = registerSignal("endToEndDelay");
+        rcvdPkSignal = registerSignal("rcvdPk");
     }
 }
 
@@ -36,6 +41,22 @@ void FollowCarApp::processPacket(Packet *packet)
 {
     EV_INFO << "=========================================" << endl;
     EV_INFO << "[FollowCarApp] 收到UDP数据包，开始解析..." << endl;
+    
+    // 首先发出rcvdPk信号
+    emit(rcvdPkSignal, packet);
+    
+    // 然后发出packetReceived信号 (继承自UdpSink)
+    emit(packetReceivedSignal, packet);
+    
+    // 计算端到端延迟
+    auto timeTag = packet->findTag<inet::CreationTimeTag>();
+    if (timeTag) {
+        simtime_t endToEndDelay = simTime() - timeTag->getCreationTime();
+        emit(endToEndDelaySignal, endToEndDelay);
+        EV_INFO << "[FollowCarApp] End-to-end delay: " << endToEndDelay << " s" << endl;
+    } else {
+        EV_WARN << "[FollowCarApp] No creation time tag found in packet" << endl;
+    }
     
     // 尝试获取源地址（如果可用）
     auto addressTag = packet->findTag<inet::L3AddressInd>();
@@ -90,21 +111,30 @@ void FollowCarApp::adjustSpeed(double leaderSpeed, double distance)
         double mySpeed = traci_->vehicle(sumoId_).getSpeed();
         EV_INFO << "[FollowCarApp] 当前车速=" << mySpeed << " m/s" << endl;
 
-        // Condition 1: Emergency stop if leader stops
+        // Condition 1: Leader stopped (e.g., at red light)
         if (leaderSpeed < 0.1) {
-            EV_INFO << "[FollowCarApp] 前车已停止，执行紧急制动，目标速度=0" << endl;
+            // 如果领头车停止，跟随车也停止
+            EV_INFO << "[FollowCarApp] 前车已停止（可能遇到红灯），执行停车，目标速度=0" << endl;
             traci_->vehicle(sumoId_).setSpeed(0);
             return;
         }
+        // Condition 2: Leader restarted after stopping
+        else if (mySpeed < 0.3 && leaderSpeed > 0.5) {
+            // 如果跟随车当前停止，但领头车已经开始行驶，则跟随车也开始行驶
+            double newSpeed = 10.0; // 缓慢启动，不要超过5m/s的初始速度
+            EV_INFO << "[FollowCarApp] 前车已重新启动，跟随启动，目标速度=" << newSpeed << " m/s" << endl;
+            traci_->vehicle(sumoId_).setSpeed(newSpeed);
+            return;
+        }
 
-        // Condition 2: Decelerate if too close and faster than leader
+        // Condition 3: Decelerate if too close and faster than leader
         if (distance < safetyDistance_ && mySpeed > leaderSpeed) {
             double newSpeed = leaderSpeed * 0.9; // Set speed to be slightly less than leader's
             EV_INFO << "[FollowCarApp] 距离过近且车速高于前车，减速：" << mySpeed
                     << " -> " << newSpeed << " m/s" << endl;
             traci_->vehicle(sumoId_).setSpeed(newSpeed);
         }
-        // Optional Condition 3: Accelerate if safe to do so (to maintain traffic flow)
+        // Condition 4: Accelerate if safe to do so (to maintain traffic flow)
         else if (distance > safetyDistance_ * 1.2 && mySpeed < maxSpeed_) {
              // Gently accelerate, e.g., to match leader speed or up to maxSpeed
              double targetSpeed = std::min(maxSpeed_, leaderSpeed * 1.1);

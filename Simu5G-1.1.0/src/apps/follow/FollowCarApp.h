@@ -35,6 +35,10 @@ protected:
 
     // State
     std::string sumoId_;
+    
+    // Statistics signals
+    simsignal_t endToEndDelaySignal;
+    simsignal_t rcvdPkSignal;
 
 protected:
     // Overridden from UdpSink

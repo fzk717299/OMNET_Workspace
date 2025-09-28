@@ -1,5 +1,6 @@
 #include "FollowRsuApp.h"
 #include "inet/common/ModuleAccess.h"
+#include "inet/common/TimeTag_m.h"
 #include "inet/networklayer/common/L3AddressResolver.h"
 #include "inet/transportlayer/udp/Udp.h"
 #include "veins_inet/VeinsInetMobility.h" // Import for VeinsInetMobility
@@ -23,6 +24,9 @@ void FollowRsuApp::initialize(int stage)
         // Initialize timer
         checkTimer_ = new cMessage("checkTimer");
         // Note: Server address resolution is deferred to runtime
+        
+        // Register statistics signals
+        sentPkSignal = registerSignal("sentPk");
     }
 }
 
@@ -80,11 +84,18 @@ void FollowRsuApp::checkCarsAndSendInfo()
 
                 Packet *packet = new Packet("FollowData");
                 packet->insertAtBack(payload);
+                
+                // 添加创建时间戳用于端到端延迟计算
+                packet->addTag<inet::CreationTimeTag>()->setCreationTime(simTime());
 
                 // Dynamically resolve server address at runtime
                 try {
                     L3Address serverAddr = L3AddressResolver().resolve(serverDestAddrName_.c_str());
                     socket.sendTo(packet, serverAddr, serverDestPort_);
+                    
+                    // Emit statistics signal for sent packet
+                    emit(sentPkSignal, packet);
+                    
                     EV_INFO << "RSU: Sent packet to server (" << serverDestAddrName_ << " -> " << serverAddr << ")" << endl;
                 }
                 catch (const std::exception& e) {

@@ -23,6 +23,10 @@ void FollowServerApp::initialize(int stage)
             followerCarId_ = par("followerCarId").stringValue();
         
         EV_INFO << "Server: Initialized with followerCarId = " << followerCarId_ << endl;
+        
+        // Register statistics signals
+        rcvdPkSignal = registerSignal("rcvdPk");
+        sentPkSignal = registerSignal("sentPk");
     }
 }
 
@@ -30,6 +34,9 @@ void FollowServerApp::initialize(int stage)
 void FollowServerApp::processPacket(Packet *pk)
 {
     EV_INFO << "Server: Received packet from RSU, forwarding to follower car." << endl;
+    
+    // Emit statistics signal for received packet
+    emit(rcvdPkSignal, pk);
 
     // We simply forward the same payload to the follower car.
     // Create a new packet to forward the data.
@@ -91,6 +98,10 @@ void FollowServerApp::processPacket(Packet *pk)
         try {
             L3Address destAddr = L3AddressResolver().resolve(fullModuleName.c_str());
             socket.sendTo(forwardPacket, destAddr, destPort);
+            
+            // Emit statistics signal for sent packet
+            emit(sentPkSignal, forwardPacket);
+            
             EV_INFO << "Server: 成功转发数据包到跟随车辆 " << fullModuleName << " (SUMO ID: " << sumoId << ")" << endl;
             EV_INFO << "Server: 数据包内容 - 领头车速度: " << payload->getLeaderSpeed() << " m/s, 车距: " << payload->getDistance() << " m" << endl;
         }

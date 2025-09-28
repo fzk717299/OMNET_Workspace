@@ -1,22 +1,21 @@
+//
+// 自动泊车服务器应用NED定义
+//
+
 package simu5g.apps.autoparking;
 
-import inet.applications.udpapp.UdpBasicApp;
-
-simple AutoParkingServerApp extends UdpBasicApp
+simple AutoParkingServerApp extends inet.applications.udpapp.UdpBasicApp
 {
     parameters:
         @class(AutoParkingServerApp);
         
-        // 澶勭悊寤惰繜 - 妯℃嫙浜戠澶勭悊鏃堕棿
-        double processingDelay @unit(s) = default(0.05s);
+        // 泊车分配策略：nearest(最近), optimal(最优), random(随机)
+        string parkingAssignmentStrategy = default("nearest");
         
-        // 杞︿綅鍒嗛厤绠楁硶
-        string parkingAssignmentStrategy = default("nearest");  // nearest, balanced
+        // 泊车区域配置文件
+        string parkingAreasFile = default("");
         
-        // 娉婅溅浣嶇疆鏁版嵁鏂囦欢
-        string parkingAreasFile = default("parkingAreas.xml");
-        
-        // 淇″彿澹版槑
+        // 统计信号
         @signal[parkingCommandRelayed](type=long);
-        @statistic[parkingCommandRelayed](title="Parking commands relayed"; source=parkingCommandRelayed; record=count,vector; interpolationmode=none);
-} 
+        @statistic[parkingCommandRelayed](title="Parking commands relayed"; source=parkingCommandRelayed; record=count,sum,vector);
+}

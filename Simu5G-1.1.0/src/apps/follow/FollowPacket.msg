@@ -28,15 +28,15 @@
 //
 
 //
-// 车辆跟驰应用数据包定义
+// 车辆跟驰应用数据包定�?
 //
 import inet.common.packet.chunk.Chunk;
 
 namespace inet;
 
 //
-// 跟驰应用数据包
-// 用于服务器向后车传递前车信息
+// 跟驰应用数据�?
+// 用于服务器向后车传递前车信�?
 //
 class FollowPacket extends FieldsChunk
 {

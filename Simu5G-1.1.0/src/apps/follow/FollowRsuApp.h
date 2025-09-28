@@ -1,5 +1,5 @@
 //
-// 车辆跟驰RSU应用头文件
+// 车辆跟驰RSU应用头文�?
 //
 
 #ifndef __SIMU5G_FOLLOWRSUAPP_H_
@@ -40,6 +40,9 @@ class FollowRsuApp : public UdpBasicApp
     // TraCI interface
     veins::TraCICommandInterface* traci_{nullptr};
     veins::TraCIScenarioManager* manager_{nullptr};
+    
+    // Statistics signals
+    simsignal_t sentPkSignal;
 
   protected:
     virtual int numInitStages() const override { return inet::NUM_INIT_STAGES; }

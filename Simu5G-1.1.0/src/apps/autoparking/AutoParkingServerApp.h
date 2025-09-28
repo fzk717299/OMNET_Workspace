@@ -1,93 +1,103 @@
 //
-// è‡ªåŠ¨æ³Šè½¦æœåŠ¡å™¨åº”ç”¨å¤´æ–‡ä»¶
+// ×Ô¶¯²´³µ·şÎñÆ÷Ó¦ÓÃÍ·ÎÄ¼ş
 //
 
 #ifndef __AUTOPARKINGSERVERAPP_H_
 #define __AUTOPARKINGSERVERAPP_H_
 
+#include <omnetpp.h>
 #include <string>
 #include <vector>
 #include <map>
 #include "inet/applications/udpapp/UdpBasicApp.h"
-#include "inet/common/packet/Packet.h"
-#include "inet/networklayer/common/L3AddressResolver.h"
+#include "inet/transportlayer/contract/udp/UdpSocket.h"
 #include "AutoParkingPacket_m.h"
+#include "veins/modules/mobility/traci/TraCIScenarioManager.h"
 
+using namespace omnetpp;
 using namespace inet;
 
-// åœè½¦åŒºåŸŸä¿¡æ¯ç»“æ„ä½“
+// Í£³µÇøÓòĞÅÏ¢½á¹¹Ìå
 struct ParkingAreaInfo {
-    std::string id;          // åœè½¦åŒºåŸŸID
-    std::string type;        // åœè½¦åŒºåŸŸç±»å‹
-    std::string laneId;      // åœè½¦åœºæ‰€åœ¨çš„è½¦é“ID
-    double x;                // Xåæ ‡
-    double y;                // Yåæ ‡
-    int capacity;            // å®¹é‡
-    int occupied;            // å·²å ç”¨ç©ºé—´
-    int priority;            // ä¼˜å…ˆçº§(é«˜ä¼˜å…ˆçº§çš„åœè½¦åŒºåŸŸä¼˜å…ˆåˆ†é…)
+    std::string id;
+    std::string lane; // The lane the parking area is attached to
+    std::string type;
+    double x;
+    double y;
+    int capacity;
+    int occupancy;
+    int priority;
 };
 
+/**
+ * ×Ô¶¯²´³µ·şÎñÆ÷Ó¦ÓÃ
+ */
 class AutoParkingServerApp : public UdpBasicApp
 {
-  protected:
-    // é…ç½®å‚æ•°
-    double processingDelay;
+protected:
+    // ²ÎÊı
     std::string parkingAssignmentStrategy;
     std::string parkingAreasFile;
     
-    // åœè½¦åŒºåŸŸä¿¡æ¯
-    std::vector<ParkingAreaInfo> parkingAreas;
+    // Í£³µ³¡ĞÅÏ¢
+    std::vector<ParkingAreaInfo*> parkingAreas;
+    std::map<std::string, int> parkingAreaOccupancy;
     
-    // å¤„ç†æ¶ˆæ¯çš„é˜Ÿåˆ—
-    typedef std::map<std::string, cMessage*> ProcessingQueue;
-    ProcessingQueue processingQueue;
+    // ÑÓ³ÙÏûÏ¢
+    struct DelayedMessage {
+        Packet* packet;
+        L3Address destAddr;
+        int destPort;
+        simtime_t sendTime;
+    };
     
-    // ç»Ÿè®¡ä¿¡æ¯
+    std::vector<DelayedMessage*> delayedMessages;
+    cMessage* processDelayedMsg;
+    
+    // Í³¼Æ
     int numRelayedCommands;
-    
-    // ä¿¡å·å£°æ˜
     static simsignal_t parkingCommandRelayedSignal;
     
-  protected:
-    // åŠ è½½åœè½¦åŒºåŸŸä¿¡æ¯
-    virtual void loadParkingAreas();
-    
-    // å¤„ç†æ¥æ”¶åˆ°çš„æ³Šè½¦è¯·æ±‚
-    virtual void processParkingRequest(Packet *packet);
-    
-    // æ‰¾åˆ°æœ€è¿‘çš„å¯ç”¨åœè½¦åŒºåŸŸ
-    virtual ParkingAreaInfo* findNearestParkingArea(double x, double y);
-    
-    // æ‰¾åˆ°æœ€ä¼˜çš„åœè½¦åŒºåŸŸï¼ˆè€ƒè™‘è·ç¦»ã€å®¹é‡ç­‰ï¼‰
-    virtual ParkingAreaInfo* findOptimalParkingArea(double x, double y);
-    
-    // è®¡ç®—ä¸¤ç‚¹ä¹‹é—´çš„è·ç¦»
-    virtual double calculateDistance(double x1, double y1, double x2, double y2);
-    
-    // åˆ›å»ºæ³Šè½¦æŒ‡ä»¤æ•°æ®åŒ…
-    virtual Packet* createParkingCommandPacket(const std::string& vehicleId,
-                                             const std::string& parkingAreaId,
-                                             ParkingAreaType parkingType,
-                                             double posX, double posY,
-                                             double distanceToParking,
-                                             const std::string& laneId = "");
-    
-    // å¤„ç†å»¶è¿Ÿå‘é€çš„æ¶ˆæ¯
-    virtual void handleDelayedMessage(cMessage *msg);
-    
-  public:
-    AutoParkingServerApp();
-    virtual ~AutoParkingServerApp();
-    
-  protected:
-    virtual int numInitStages() const override { return NUM_INIT_STAGES; }
+protected:
     virtual void initialize(int stage) override;
     virtual void handleMessageWhenUp(cMessage *msg) override;
-    virtual void socketDataArrived(UdpSocket *socket, Packet *packet) override;
     virtual void finish() override;
     
-    // å¤„ç†æ”¶åˆ°çš„è¯·æ±‚
+    // ¼ÓÔØÍ£³µ³¡ĞÅÏ¢
+    virtual void loadParkingAreas();
+    
+    // ´¦ÀíÊÕµ½µÄÊı¾İ°ü
+    virtual void socketDataArrived(UdpSocket *socket, Packet *packet) override;
     virtual void processReceivedPacket(Packet *packet);
+    
+    // ´¦ÀíÑÓ³ÙÏûÏ¢
+    virtual void handleDelayedMessage(cMessage *msg);
+    
+    // ´¦Àí²´³µÇëÇó
+    virtual void processParkingRequest(Packet *packet);
+    
+    // ²éÕÒ×î½üµÄÍ£³µ³¡
+    virtual ParkingAreaInfo* findNearestParkingArea(double x, double y);
+    
+    // ²éÕÒ×îÓÅµÄÍ£³µ³¡
+    virtual ParkingAreaInfo* findOptimalParkingArea(double x, double y);
+    
+    // ¼ÆËã¾àÀë
+    virtual double calculateDistance(double x1, double y1, double x2, double y2);
+    
+    // ´´½¨²´³µÃüÁîÊı¾İ°ü
+    virtual Packet* createParkingCommandPacket(const std::string& vehicleId,
+                                             const std::string& parkingAreaId,
+                                             double distanceToParking,
+                                             const std::string& currentLaneId,
+                                             const std::string& destinationLaneId);
+                                             
+    // ½«SUMO IDÓ³Éäµ½OMNeT++Ä£¿éÃû
+    std::string mapSumoIdToOmnetName(const char* sumoId);
+    
+public:
+    AutoParkingServerApp();
+    virtual ~AutoParkingServerApp();
 };
 
-#endif 
+#endif

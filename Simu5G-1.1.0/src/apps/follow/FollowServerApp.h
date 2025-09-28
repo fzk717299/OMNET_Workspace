@@ -22,6 +22,10 @@ class FollowServerApp : public UdpBasicApp
 protected:
     // 使用followerCarId而不是依赖car[1]
     std::string followerCarId_;
+    
+    // Statistics signals
+    simsignal_t rcvdPkSignal;
+    simsignal_t sentPkSignal;
 
 protected:
     virtual int numInitStages() const override { return inet::NUM_INIT_STAGES; }

@@ -16,7 +16,7 @@
 using namespace omnetpp;
 using namespace inet;
 
-// 停车区域信息结构体
+// 停车场信息结构体
 struct ParkingAreaInfo {
     std::string id;
     std::string lane; // The lane the parking area is attached to
@@ -37,6 +37,8 @@ class AutoParkingRsuApp : public UdpBasicApp
     double checkInterval;
     double parkingProbability;
     std::string parkingAreasFile;
+    std::string serverDestAddrName;  // 服务器地址名称
+    int serverDestPort;              // 服务器端口
     
     // TraCI相关
     veins::TraCICommandInterface* traci;
@@ -60,8 +62,8 @@ class AutoParkingRsuApp : public UdpBasicApp
     virtual void handleMessageWhenUp(cMessage *msg) override;
     virtual void finish() override;
     
-    // 连接到TraCI
-    virtual void connectToTraCI();
+    // 获取TraCI接口
+    virtual bool getTraCIInterface();
     
     // 加载停车场信息
     virtual void loadParkingAreas();
