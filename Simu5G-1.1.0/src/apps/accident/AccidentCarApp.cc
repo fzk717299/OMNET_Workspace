@@ -15,6 +15,7 @@
 
 #include <iostream> // 添加标准输出头文件
 #include "inet/transportlayer/contract/udp/UdpSocket.h" // 添加UdpSocket头文件
+#include "inet/common/TimeTag_m.h" // 添加时间标签头文件，用于端到端延迟计算
 
 using namespace inet::units::values;
 using namespace omnetpp;
@@ -22,8 +23,8 @@ using namespace inet;
 
 Define_Module(AccidentCarApp);
 
-// 静态信号声明和注册 - 移除停车相关的
-simsignal_t AccidentCarApp::endToEndDelaySignal = registerSignal("endToEndDelay");
+// 静态信号声明 - 注意：必须单独定义静态成员变量
+simsignal_t AccidentCarApp::endToEndDelaySignal;
 
 AccidentCarApp::AccidentCarApp() :
     UdpSink(),
@@ -51,6 +52,11 @@ void AccidentCarApp::initialize(int stage)
     UdpSink::initialize(stage);
     
     if (stage == INITSTAGE_LOCAL) {
+        // 只在类第一次初始化时注册静态信号
+        if (endToEndDelaySignal == SIMSIGNAL_NULL) {
+            endToEndDelaySignal = registerSignal("endToEndDelay");
+        }
+        
         // 读取参数
         smoothDeceleration_ = par("smoothDeceleration").boolValue();
         responseTime_ = par("responseTime").doubleValue();
@@ -151,6 +157,10 @@ void AccidentCarApp::triggerAccident()
 
 void AccidentCarApp::processPacket(Packet *packet)
 {
+    // 增强的日志输出
+    EV_INFO << "=========================================" << endl;
+    EV_INFO << "[AccidentCarApp] 收到UDP数据包，开始解析..." << endl;
+    std::cout << "=========================================" << endl;
     std::cout << "\n\n\n****** [DIRECT OUTPUT] AccidentCarApp::processPacket 被调用！车辆 " << getSumoId() 
               << " 收到数据包: '" << packet->getName() << "' ******\n\n\n" << std::endl;
               
@@ -159,11 +169,14 @@ void AccidentCarApp::processPacket(Packet *packet)
         std::cout << "****** [DIRECT OUTPUT] 数据包名称匹配 LaneChangeCommand！******" << std::endl;
     }
     
-    // 不调用基类方法，直接处理
-    // UdpSink::processPacket(packet);  // 注释掉，避免重复处理
+    // 发出信号
+    emit(packetReceivedSignal, packet);
     
+    // 计算端到端延迟 - 按照SpeedLimitCarApp的实现方式
     simtime_t delay = simTime() - packet->getCreationTime();
     emit(endToEndDelaySignal, delay);
+    EV_INFO << "[AccidentCarApp] 端到端延迟: " << delay << " s" << endl;
+    std::cout << "[AccidentCarApp] 端到端延迟: " << delay << " s" << std::endl;
     
     try {
         const auto& chunk = packet->peekData<Chunk>();
@@ -345,6 +358,7 @@ void AccidentCarApp::ensureSocketBinding()
         // 如果手动绑定失败，尝试让UdpSink自己处理
     }
 }
+
 
 void AccidentCarApp::finish()
 {

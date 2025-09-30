@@ -47,10 +47,10 @@ enum ParkingState {
     int numReceivedCommands;
     int numExecutedCommands;
     
-    // 信号
+    // 信号 - 改为与SpeedLimitCarApp一致的静态形式
     simsignal_t parkingCommandReceivedSignal;
     simsignal_t parkingCompletedSignal;
-    simsignal_t endToEndDelaySignal;
+    static simsignal_t endToEndDelaySignal;
     
   protected:
     virtual void initialize(int stage) override;

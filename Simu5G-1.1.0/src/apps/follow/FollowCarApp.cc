@@ -11,6 +11,10 @@
 
 Define_Module(FollowCarApp);
 
+// 静态信号定义 - 注意：必须单独定义静态成员变量
+simsignal_t FollowCarApp::endToEndDelaySignal;
+simsignal_t FollowCarApp::rcvdPkSignal;
+
 FollowCarApp::FollowCarApp() {}
 
 // --- Initialization ---
@@ -24,9 +28,13 @@ void FollowCarApp::initialize(int stage)
         // Initialize mobility pointer
         mobility_ = inet::getModuleFromPar<veins::VeinsInetMobility>(par("mobilityModule"), this);
         
-        // Register statistics signals
-        endToEndDelaySignal = registerSignal("endToEndDelay");
-        rcvdPkSignal = registerSignal("rcvdPk");
+        // 只在类第一次初始化时注册静态信号
+        if (endToEndDelaySignal == SIMSIGNAL_NULL) {
+            endToEndDelaySignal = registerSignal("endToEndDelay");
+        }
+        if (rcvdPkSignal == SIMSIGNAL_NULL) {
+            rcvdPkSignal = registerSignal("rcvdPk");
+        }
     }
 }
 
@@ -42,21 +50,16 @@ void FollowCarApp::processPacket(Packet *packet)
     EV_INFO << "=========================================" << endl;
     EV_INFO << "[FollowCarApp] 收到UDP数据包，开始解析..." << endl;
     
-    // 首先发出rcvdPk信号
-    emit(rcvdPkSignal, packet);
+    // 首先发出rcvdPk信号 - 发送1表示接收到一个数据包，而不是发送包对象本身
+    emit(rcvdPkSignal, 1L);
     
     // 然后发出packetReceived信号 (继承自UdpSink)
     emit(packetReceivedSignal, packet);
     
-    // 计算端到端延迟
-    auto timeTag = packet->findTag<inet::CreationTimeTag>();
-    if (timeTag) {
-        simtime_t endToEndDelay = simTime() - timeTag->getCreationTime();
-        emit(endToEndDelaySignal, endToEndDelay);
-        EV_INFO << "[FollowCarApp] End-to-end delay: " << endToEndDelay << " s" << endl;
-    } else {
-        EV_WARN << "[FollowCarApp] No creation time tag found in packet" << endl;
-    }
+    // 计算端到端延迟 - 使用与SpeedLimitCarApp相同的方法
+    simtime_t delay = simTime() - packet->getCreationTime();
+    emit(endToEndDelaySignal, delay);
+    EV_INFO << "[FollowCarApp] End-to-end delay: " << delay << " s" << endl;
     
     // 尝试获取源地址（如果可用）
     auto addressTag = packet->findTag<inet::L3AddressInd>();

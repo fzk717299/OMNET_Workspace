@@ -32,7 +32,7 @@ protected:
         EVADING         // 正在避让
     };
 
-    // 统计信号 - 移除与停车相关的
+    // 统计信号 - 与SpeedLimitCarApp保持一致
     static simsignal_t endToEndDelaySignal;
     
     // TraCI接口指针，不负责创建和销毁

@@ -25,8 +25,7 @@ simple AccidentCarApp extends UdpSink
         // 事故发生时间
         double accidentTime @unit(s) = default(5s);
         
-        // 统计信号
-        @signal[endToEndDelay](type=simtime_t);
-        
-        @statistic[endToEndDelay](title="端到端延迟"; source=endToEndDelay; record=vector,mean,max; unit=s; interpolationmode=none);
+        // 统计信号 - 与SpeedLimitCarApp保持一致
+        @signal[endToEndDelay](type=simtime_t; unit=s);
+        @statistic[endToEndDelay](title="End-to-end delay"; source=endToEndDelay; record=vector,mean,max,histogram; interpolationmode=none);
 }

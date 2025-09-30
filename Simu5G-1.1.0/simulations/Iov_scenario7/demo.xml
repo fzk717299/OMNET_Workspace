@@ -1,0 +1,8 @@
+<config>
+    <!-- Assign a large address block for mobile UEs on their wireless interface -->
+    <interface hosts="car*" names="wlan" address="10.x.x.x" netmask="255.0.0.0"/>
+    <interface hosts="eNodeB*" names="wlan" address="10.x.x.x" netmask="255.0.0.0"/>
+
+    <!-- Assign a standard address block for all other wired interfaces -->
+    <interface hosts="**" address="192.168.x.x" netmask="255.255.255.0"/>
+</config>

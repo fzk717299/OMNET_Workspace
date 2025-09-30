@@ -36,9 +36,9 @@ protected:
     // State
     std::string sumoId_;
     
-    // Statistics signals
-    simsignal_t endToEndDelaySignal;
-    simsignal_t rcvdPkSignal;
+    // Statistics signals - 改为与SpeedLimitCarApp一致的静态形式
+    static simsignal_t endToEndDelaySignal;
+    static simsignal_t rcvdPkSignal;
 
 protected:
     // Overridden from UdpSink

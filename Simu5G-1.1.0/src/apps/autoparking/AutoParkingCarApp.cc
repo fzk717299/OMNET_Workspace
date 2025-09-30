@@ -17,6 +17,9 @@ using namespace inet;
 
 Define_Module(AutoParkingCarApp);
 
+// 静态信号定义 - 注意：必须单独定义静态成员变量
+simsignal_t AutoParkingCarApp::endToEndDelaySignal;
+
 // 移除这些静态注册，因为信号现在是实例成员
 // simsignal_t AutoParkingCarApp::parkingCommandReceivedSignal = registerSignal("parkingCommandReceived");
 // simsignal_t AutoParkingCarApp::parkingCompletedSignal = registerSignal("parkingCompleted");
@@ -35,8 +38,8 @@ AutoParkingCarApp::AutoParkingCarApp() :
     numReceivedCommands(0),
     numExecutedCommands(0),
     parkingCommandReceivedSignal(SIMSIGNAL_NULL),
-    parkingCompletedSignal(SIMSIGNAL_NULL),
-    endToEndDelaySignal(SIMSIGNAL_NULL)
+    parkingCompletedSignal(SIMSIGNAL_NULL)
+    // 静态成员不能在构造函数初始化列表中初始化
 {
 }
 
@@ -54,7 +57,10 @@ void AutoParkingCarApp::initialize(int stage)
         // 注册信号
         parkingCommandReceivedSignal = registerSignal("parkingCommandReceived");
         parkingCompletedSignal = registerSignal("parkingCompleted");
-        endToEndDelaySignal = registerSignal("endToEndDelay");
+        // 只在类第一次初始化时注册静态信号
+        if (endToEndDelaySignal == SIMSIGNAL_NULL) {
+            endToEndDelaySignal = registerSignal("endToEndDelay");
+        }
 
         // 初始化参数
         smoothParking = par("smoothParking");
@@ -290,18 +296,16 @@ void AutoParkingCarApp::processParkingCommand(const AutoParkingPacket* cmd, simt
     EV_INFO << "【车辆应用】接收到泊车指令，车辆将立即停止" << endl;
     std::cout << "【车辆应用】接收到泊车指令，车辆将立即停止" << endl;
     
-    // 暂时注释掉端到端延迟计算，等代码调通后再添加
-    // TODO: 添加端到端延迟计算
-    /*
+    // 计算端到端延迟 - 在处理泊车指令时也记录
     simtime_t timestamp = cmd->getTimestamp();
-    simtime_t now = simTime();
-    simtime_t delay = now - timestamp;
+    simtime_t currentTime = simTime();  // 使用不同的变量名避免重复声明
+    simtime_t cmdDelay = currentTime - timestamp;
     
-    EV_INFO << "【车辆应用】命令时间戳: " << timestamp << ", 当前时间: " << now << ", 延迟: " << delay << "s" << endl;
-    std::cout << "【车辆应用】命令时间戳: " << timestamp << ", 当前时间: " << now << ", 延迟: " << delay << "s" << endl;
+    EV_INFO << "【车辆应用】命令时间戳: " << timestamp << ", 当前时间: " << currentTime << ", 延迟: " << cmdDelay << "s" << endl;
+    std::cout << "【车辆应用】命令时间戳: " << timestamp << ", 当前时间: " << currentTime << ", 延迟: " << cmdDelay << "s" << endl;
     
-    emit(endToEndDelaySignal, delay);
-    */
+    // 使用静态信号发送延迟数据
+    emit(endToEndDelaySignal, cmdDelay);
     
     // 记录统计信息
     numReceivedCommands++;
