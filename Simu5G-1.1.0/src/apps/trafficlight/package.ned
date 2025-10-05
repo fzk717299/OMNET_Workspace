@@ -1,7 +1,4 @@
 //
-// Traffic Light Information Application for Simu5G
+// package.ned
 //
-
 package simu5g.apps.trafficlight;
-
-@namespace(inet);

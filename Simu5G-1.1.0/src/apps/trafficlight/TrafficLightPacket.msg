@@ -1,19 +1,26 @@
 //
-// Traffic Light Information Packet
-//
-// This packet carries traffic light state information from RSU to vehicles
+// TrafficLightPacket.msg
 //
 
+import inet.common.INETDefs;
 import inet.common.packet.chunk.Chunk;
 
 namespace inet;
 
+//
+// Message sent from RSU to Car
+//
 class TrafficLightPacket extends FieldsChunk
 {
-    string trafficLightId;   // ID of the traffic light in SUMO
-    string state;            // Current state (e.g., "GGgrr" for green/red states)
-    double timestamp;        // Time when the state was observed
-    double position_x;       // X coordinate of the traffic light
-    double position_y;       // Y coordinate of the traffic light
-    double remainingTime;    // Estimated time until next state change (seconds)
+    // ID of the RSU sending the message
+    int rsuId;
+
+    // Simulation time when the message was created
+    simtime_t creationTime;
+
+    // Current state of the traffic light (e.g., 0=RED, 1=GREEN, 2=YELLOW)
+    int lightState;
+
+    // Time remaining for the current state
+    double timeToChange;
 }
